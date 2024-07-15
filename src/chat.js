@@ -11,29 +11,29 @@ function handleWebSocketConnection(ws) {
     // Initialize heartbeat tracking
     ws.missedHeartbeats = 0;
 
-    // Set up heartbeat mechanism
+    // Set up heartbeat mechanism to check if the client missed too many heartbeats
     const heartbeatCheck = setInterval(() => {
         if (ws.missedHeartbeats >= HEARTBEAT.MAX_MISSED) {
             console.log(`Client ${ws.identifier} missed too many heartbeats, disconnecting`);
             ws.terminate();
-        } else {
-            ws.send(JSON.stringify({ op: OPCODES.HEARTBEAT }));
-            ws.missedHeartbeats++;
         }
     }, HEARTBEAT.INTERVAL); // Use the interval as is
 
     ws.on('message', (message) => {
+        console.info('Received message:', message); // Log incoming message
         try {
             const parsedMessage = JSON.parse(message);
             const { op, d } = parsedMessage;
 
             switch (op) {
                 case OPCODES.IDENTIFY:
+                    console.info('Handling IDENTIFY:', d); // Log IDENTIFY message
                     const client = ClientFactory.createClient(ws, d.identifier);
                     console.log(`Client identified as: ${client.identifier}`);
                     break;
 
                 case OPCODES.JOIN_CHANNEL:
+                    console.info('Handling JOIN_CHANNEL:', d); // Log JOIN_CHANNEL message
                     const joinClient = ClientFactory.getClient(d.identifier);
                     if (joinClient) {
                         joinClient.joinChannel(d.channel);
@@ -42,6 +42,7 @@ function handleWebSocketConnection(ws) {
                     break;
 
                 case OPCODES.LEAVE_CHANNEL:
+                    console.info('Handling LEAVE_CHANNEL:', d); // Log LEAVE_CHANNEL message
                     const leaveClient = ClientFactory.getClient(d.identifier);
                     if (leaveClient) {
                         leaveClient.leaveChannel(d.channel);
@@ -50,30 +51,40 @@ function handleWebSocketConnection(ws) {
                     break;
 
                 case OPCODES.SEND_MESSAGE:
+                    console.info('Handling SEND_MESSAGE:', d); // Log SEND_MESSAGE message
                     const sendClient = ClientFactory.getClient(d.identifier);
                     if (sendClient && sendClient.channels.includes(d.channel)) {
                         ClientFactory.getAllClients().forEach(client => {
                             if (client.channels.includes(d.channel)) {
-                                client.send({
+                                const receiveMessagePayload = {
                                     op: OPCODES.RECEIVE_MESSAGE,
                                     d: { channel: d.channel, message: d.message }
-                                });
+                                };
+                                console.info('Sending RECEIVE_MESSAGE:', receiveMessagePayload);
+                                client.send(JSON.stringify(receiveMessagePayload));
                             }
                         });
                     }
                     break;
 
                 case OPCODES.HEARTBEAT:
+                    console.info('Received HEARTBEAT'); // Log HEARTBEAT message
                     ws.missedHeartbeats = 0;
-                    ws.send(JSON.stringify({ op: OPCODES.HEARTBEAT_ACK }));
+                    const heartbeatAckPayload = { op: OPCODES.HEARTBEAT_ACK };
+                    console.info('Sending HEARTBEAT_ACK:', heartbeatAckPayload);
+                    ws.send(JSON.stringify(heartbeatAckPayload));
                     break;
 
                 default:
-                    ws.send(JSON.stringify({ op: 'ERROR', d: { message: 'Unknown opcode' } }));
+                    const errorPayload = { op: 'ERROR', d: { message: 'Unknown opcode' } };
+                    console.info('Sending ERROR:', errorPayload);
+                    ws.send(JSON.stringify(errorPayload));
             }
         } catch (error) {
             console.error('Error processing message:', error);
-            ws.send(JSON.stringify({ op: 'ERROR', d: { message: 'Invalid message format' } }));
+            const errorPayload = { op: 'ERROR', d: { message: 'Invalid message format' } };
+            console.info('Sending ERROR:', errorPayload);
+            ws.send(JSON.stringify(errorPayload));
         }
     });
 
@@ -93,13 +104,16 @@ function sendHelloFrame(ws) {
         channels: ClientFactory.clients[id].channels
     }));
 
-    ws.send(JSON.stringify({
+    const helloPayload = {
         op: OPCODES.HELLO,
         d: {
             connectedClients,
-            heartbeat_interval: HEARTBEAT.INTERVAL / 1000.0
+            heartbeat_interval: HEARTBEAT.INTERVAL / 1000.0 // Send as a float representation
         }
-    }));
+    };
+
+    console.info('Sending HELLO frame:', helloPayload);
+    ws.send(JSON.stringify(helloPayload));
 }
 
 module.exports = { handleWebSocketConnection };
