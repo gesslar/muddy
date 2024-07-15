@@ -82,21 +82,22 @@ function handleWebSocketConnection(ws) {
                     } else {
                         const channel = ChannelFactory.getChannel(d.channel);
                         if (channel) {
-                            channel.getClients().forEach(client => {
-                                if (client !== sendClient) {
-                                    const receiveMessagePayload = {
-                                        op: OPCODES.DISPATCH,
-                                        t: EVENTS.MESSAGE_CREATE,
-                                        d: {
-                                            channel: d.channel,
-                                            message: d.message,
-                                            talker: d.talker,
-                                            identifier: ws.identifier // Include the identifier of the originating client
-                                        }
-                                    };
-                                    console.info('Sending MESSAGE_CREATE to client:', receiveMessagePayload);
-                                    client.ws.send(JSON.stringify(receiveMessagePayload));
-                                }
+                            const clientsInChannel = channel.getClients();
+                            console.info(`Clients in channel ${d.channel}: ${clientsInChannel.map(c => c.identifier).join(', ')}`);
+                            clientsInChannel.forEach(client => {
+                                // Temporary allow sending to the originating client for testing
+                                const receiveMessagePayload = {
+                                    op: OPCODES.DISPATCH,
+                                    t: EVENTS.MESSAGE_CREATE,
+                                    d: {
+                                        channel: d.channel,
+                                        message: d.message,
+                                        talker: d.talker,
+                                        identifier: ws.identifier // Include the identifier of the originating client
+                                    }
+                                };
+                                console.info('Sending MESSAGE_CREATE to client:', receiveMessagePayload);
+                                client.ws.send(JSON.stringify(receiveMessagePayload));
                             });
 
                             if (d.echo === 1) {
