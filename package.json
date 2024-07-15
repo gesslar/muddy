@@ -1,28 +1,22 @@
 {
-  "name": "glitch-hello-node",
+  "name": "muddy",
   "version": "0.1.0",
   "description": "A simple Node app built on fastify, instantly up and running. Built to be remixed on Glitch.com.",
-  "main": "server.js",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node src/server.js"
   },
   "dependencies": {
-    "fastify": "^4.21.0",
-    "handlebars": "^4.7.8",
-    "@fastify/formbody": "^7.4.0",
-    "@fastify/static": "^6.10.2",
-    "@fastify/view": "^8.0.0",
     "ws": "^8.18.0"
   },
   "engines": {
-    "node": "14.x"
+    "node": ">=14.x"
   },
   "repository": {
-    "url": "https://glitch.com/edit/#!/glitch-hello-node"
+    "url": "https://github.com/gesslar/muddy"
   },
   "license": "MIT",
   "keywords": [
-    "node",
-    "glitch"
+    "node", "websockets", "mud"
   ]
 }
