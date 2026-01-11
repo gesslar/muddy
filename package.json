@@ -1,0 +1,37 @@
+{
+  "name": "@gesslar/muddy",
+  "description": "The red-headed stepchild of muddler.",
+  "author": {
+    "name": "gesslar",
+    "url": "https://gesslar.dev"
+  },
+  "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gesslar/muddy.git"
+  },
+  "type": "module",
+  "keywords": [],
+  "license": "Unlicense",
+  "main": "src/cli.js",
+  "scripts": {
+    "lint": "eslint",
+    "lint:fix": "eslint --fix",
+    "update": "pnpm self-update && pnpx npm-check-updates -u && pnpm install",
+    "test": "node src/cli.js test/ThresholdUI -n"
+  },
+  "packageManager": "pnpm@10.27.0",
+  "dependencies": {
+    "@gesslar/actioneer": "^2.0.2",
+    "@gesslar/colours": "^0.8.0",
+    "@gesslar/toolkit": "^3.22.2",
+    "adm-zip": "^0.5.16",
+    "archiver": "^7.0.1",
+    "commander": "^14.0.2",
+    "xmlbuilder2": "^4.0.3"
+  },
+  "devDependencies": {
+    "@gesslar/uglier": "^1.0.0",
+    "eslint": "^9.39.2"
+  }
+}
