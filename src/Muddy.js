@@ -365,6 +365,7 @@ export default class Muddy {
     let fileIndex = 0
 
     for(const [file] of modules) {
+      glog.info(file)
       const local = []
       const trail = file.parent.trail.slice(top)
 
@@ -411,20 +412,6 @@ export default class Muddy {
     const {kind, structure: folders} = ctx
     const pkg = Type.PACKAGES[kind]
     const frag = fragment().ele(pkg)
-
-    // folders.forEach(folder => {
-    //   folder.forEach(e => {
-    //     const children = e.children
-    //     const xmlFragments = Array.from(children)
-    //       .map(child => {
-    //         glog.info(c`XML-izing ${child.constructor.name} => ${child.name}`)
-
-    //         return child.toXMLFragment()
-    //       })
-
-    //     xmlFragments.forEach(child => frag.import(child))
-    //   })
-    // })
 
     return frag.import(this.#recursiveBuild(folders))
   }

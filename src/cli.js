@@ -50,7 +50,7 @@ void (async() => {
     }
 
     if(!(await cwd.hasDirectory("src") && await cwd.hasFile("mfile"))) {
-      glog.error(`'${cwd.real.path}' is not a valid muddy project directory.`)
+      glog.error(`'${cwd.path}' is not a valid muddy project directory.`)
       process.exit(1)
     }
 
