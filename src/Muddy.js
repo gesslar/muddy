@@ -435,7 +435,7 @@ export default class Muddy {
   // Uses language features: arrays have .length > 0, non-arrays (Module objects)
   // fail curr.length > 0 (undefined > 0 is false) and fall through to
   // toXMLFragment().
-  #recursiveBuild = arr  => arr.reduce((acc, curr) => {
+  #recursiveBuild = arr => arr.reduce((acc, curr) => {
     if(curr.length > 0)
       return acc.import(this.#recursiveBuild(curr))
 
@@ -487,7 +487,7 @@ export default class Muddy {
     const resourcesDirectory = srcDirectory.getDirectory("resources")
     if(!await resourcesDirectory.exists) {
       glog.warn(
-        c`No such directory '${resourcesDirectory.relativeTo(resourcesDirectory.cap)}'`
+        c`No such directory '${resourcesDirectory.relativeTo(resourcesDirectory)}'`
       )
 
       return ctx
