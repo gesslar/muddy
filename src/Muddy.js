@@ -315,7 +315,6 @@ export default class Muddy {
     let fileIndex = 0
 
     for(const [file] of modules) {
-      glog.info(file)
       const local = []
       const trail = file.parent.trail.slice(top)
 
@@ -330,7 +329,7 @@ export default class Muddy {
       let last = local.at(-1)
 
       for(const leaf of trail) {
-        glog.info(c`Building tree for {${kind}}${leaf}{/}`)
+        glog.info(c`Building sub-tree for {${kind}}${leaf}{/}`)
         const newLeaf = new kindClass({
           name: leaf,
           isActive: "yes",
