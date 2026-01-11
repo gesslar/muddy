@@ -5,7 +5,7 @@ import Module from "./Module.js"
 export default class Alias extends Module {
   #meta = new Map()
 
-  constructor(object) {
+  constructor(object={regex: "", command: ""}) {
     super(object)
 
     const {regex="", command=""} = object

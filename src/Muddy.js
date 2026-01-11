@@ -371,7 +371,7 @@ export default class Muddy {
         new kindClass({
           name: trail.shift(),
           isActive: "yes",
-          isFolder: "no",
+          isFolder: "yes",
         })
       )
 
@@ -382,7 +382,7 @@ export default class Muddy {
         const newLeaf = new kindClass({
           name: leaf,
           isActive: "yes",
-          isFolder: "no",
+          isFolder: "yes",
         })
 
         last.addChild(newLeaf)
@@ -424,12 +424,21 @@ export default class Muddy {
     return frag.import(this.#recursiveBuild(folders))
   }
 
-  // instead of root-based, make it array-based and recurse when you have a new
+  // Instead of root-based, make it array-based and recurse when you have a new
   // array, and process it when it's just a single item. reverse of
   // recurseDelete. Not parallelizated because order matters here.
+  //
+  // Note: The AI reviewer added the below comment, supposedly to fend off
+  // against vicious cyber-attacks from TypeScript cultists who cargo about
+  // their safety nets like they're not lies wrapped in the minifier they call
+  // a "compiler." I'll let it stand. Cos it's funny.
+  //
+  // Uses language features: arrays have .length > 0, non-arrays (Module objects)
+  // fail curr.length > 0 (undefined > 0 is false) and fall through to
+  // toXMLFragment().
   #recursiveBuild = arr  => arr.reduce((acc, curr) => {
     if(curr.length > 0)
-      return this.#recursiveBuild(curr)
+      return acc.import(this.#recursiveBuild(curr))
 
     return acc.import(curr.toXMLFragment())
   }, fragment())
@@ -562,8 +571,9 @@ export default class Muddy {
           object[k] = "no"
       })
 
-      return object
     }
+
+    return object
   }
 
   #recursiveDelete = async(dir, includeSelf=false) => {
