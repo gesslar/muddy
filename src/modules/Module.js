@@ -87,9 +87,6 @@ export default class Module {
       .ele({script: this.script}).up()
       .ele({packageName: this.packageName}).up()
 
-    // if(this.children.size)
-    //   this.children.forEach(e => frag.ele.import(e))
-
     return frag
   }
 }
