@@ -51,8 +51,6 @@ export default class Muddy {
     try {
       builder
         .do("Read mfile", this.#readMfile)
-        .do("Fetch schemas", this.#fetchSchemas)
-        .do("Validate mfile", this.#validateMfile)
         .do("Discover src/ directory", this.#discoverSrcDirectory)
         .do("Process modules", SPLIT,
           this.#split,
@@ -91,45 +89,6 @@ export default class Muddy {
     }
   }
 
-  #fetchSchemas = async ctx => {
-    glog.info("Fetching schemas")
-
-    ctx.schemas = new Map()
-    ctx.schemasDirectory = this.#temp.getDirectory("schemas")
-    await ctx.schemasDirectory.assureExists()
-
-    const toRetrieve = Object.keys(Type.URL)
-    const settled = await Promised.settle(
-      toRetrieve.map(async schema => {
-        try {
-          const tempFilename = `${schema}.json`
-          const schemaFile = ctx.schemasDirectory.getFile(tempFilename)
-          const url = Type.URL[schema]
-
-          const response = await fetch(url)
-
-          if(!response.ok)
-            throw Sass.new(
-              `Unable to retrieve schema ${url}: `+
-            `${(response).status} ${response.statusText}`
-            )
-
-          await schemaFile.write(response.body)
-          ctx.schemas.set(schema, schemaFile)
-
-          glog.use(indent).success(c`Fetched {OK}${url.href}{/}`)
-        } catch(error) {
-          throw Sass.new(`Fetching schema for ${schema}`, error)
-        }
-      })
-    )
-
-    if(Promised.hasRejected(settled))
-      Promised.throw("Fetching schemas.", settled)
-
-    return ctx
-  }
-
   #readMfile = async projectDirectory => {
     const mfileObject = projectDirectory.getFile("mfile")
     if(!await mfileObject.exists)
@@ -146,15 +105,6 @@ export default class Muddy {
       )
 
     return {projectDirectory, mfile}
-  }
-
-  #validateMfile = async ctx => {
-    // const schemaFile = this.#schemaFiles.get("mfile")
-    // const schema = TK.Schemer.fromFile(schemaFile)
-
-    // Glog(schema)
-
-    return ctx
   }
 
   #discoverSrcDirectory = async ctx => {
