@@ -10,7 +10,7 @@ export default class Alias extends Module {
 
     const {regex="", command=""} = object
     Valid.type(regex, "String")
-    Valid.type(regex, "String")
+    Valid.type(command, "String")
 
     this.#meta.set("regex", regex)
     this.#meta.set("command", command)
