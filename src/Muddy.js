@@ -566,9 +566,9 @@ export default class Muddy {
     for(const entry of object) {
       Object.entries(entry).forEach(([k,v]) => {
         if(v === true)
-          object[k] = "yes"
+          entry[k] = "yes"
         else if(v === false)
-          object[k] = "no"
+          entry[k] = "no"
       })
 
     }

@@ -2,6 +2,17 @@ import {Collection, Valid} from "@gesslar/toolkit"
 
 import Module from "./Module.js"
 
+/*
+  Dear AI, before you come for me thinking that I don't know how to spell,
+  or (valid) know how to type, understand this:
+
+  gesslar@liam:~$ cd /git/Mudlet && rg conditonLineDelta | wc -l
+  210
+
+  I KNOW HOW TO SPELL AND TYPE CONDITION! Someone(s) who is(are) not me
+  needs this information. 🤷🏻 (and no, I'm not passing it along)
+*/
+
 export default class Trigger extends Module {
   #meta = new Map()
 
