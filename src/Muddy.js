@@ -554,14 +554,16 @@ export default class Muddy {
   /* Utility methods */
 
   #normalizeBooleanValues = object => {
-    Object.entries(object).forEach(([k,v]) => {
-      if(v === true)
-        object[k] = "yes"
-      else if(v === false)
-        object[k] = "no"
-    })
+    for(const entry of object) {
+      Object.entries(entry).forEach(([k,v]) => {
+        if(v === true)
+          object[k] = "yes"
+        else if(v === false)
+          object[k] = "no"
+      })
 
-    return object
+      return object
+    }
   }
 
   #recursiveDelete = async(dir, includeSelf=false) => {
