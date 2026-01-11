@@ -202,9 +202,9 @@ export default class Muddy {
   }
 
   #modulesSplit = async ctx => {
-    const {moduleFiles, kind, baseDir, srcDirectory} = ctx
+    const {moduleFiles, kind, srcDirectory} = ctx
 
-    return moduleFiles.map(e => ({moduleFile: e, kind, baseDir, srcDirectory}))
+    return moduleFiles.map(e => ({moduleFile: e, kind, srcDirectory}))
   }
 
   #rejoinModules = async(orig, settled) => {
