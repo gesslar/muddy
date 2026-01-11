@@ -337,6 +337,7 @@ export default class Muddy {
           e.moduleFiles,
           e.loaded,
         ),
+        loaded: e.loaded,
         srcDirectory
       }
     ))
@@ -354,15 +355,16 @@ export default class Muddy {
   }
 
   #buildModuleTree = async ctx => {
-    const {kind, modules, srcDirectory} = ctx
+    const {kind, modules, loaded, srcDirectory} = ctx
     const kindClass = Type.CLASS[kind]
     const top = srcDirectory.trail.length
 
     glog.info(c`Building tree for {${kind}}${kind}{/}`)
 
     const structure = []
+    let fileIndex = 0
 
-    for(const [file, module] of modules) {
+    for(const [file] of modules) {
       const local = []
       const trail = file.parent.trail.slice(top)
 
@@ -389,12 +391,16 @@ export default class Muddy {
         last = newLeaf
       }
 
-      for(const {definition, $module} of module) {
+      const fileLoaded = Array.isArray(loaded[fileIndex])
+        ? loaded[fileIndex]
+        : []
+      for(const {definition, $module} of fileLoaded) {
         glog.use(indent2).info(c`Adding {${kind}}${definition.name}{/}`)
 
         last.addChild($module)
       }
 
+      fileIndex++
       structure.push(local)
     }
 
@@ -487,7 +493,7 @@ export default class Muddy {
     const resourcesDirectory = srcDirectory.getDirectory("resources")
     if(!await resourcesDirectory.exists) {
       glog.warn(
-        c`No such directory '${resourcesDirectory.relativeTo(resourcesDirectory)}'`
+        c`No such directory '${resourcesDirectory.relativeTo(srcDirectory)}'`
       )
 
       return ctx
@@ -497,7 +503,7 @@ export default class Muddy {
       const srcIcon = resourcesDirectory.getFile(mfile.icon)
       if(!await srcIcon.exists) {
         glog.warn(
-          c`No such icon file '${srcIcon.relativeTo(srcIcon.parent.cap)}'`
+          c`No such icon file '${srcIcon.relativeTo(srcIcon.parent)}'`
         )
       } else {
         const iconData = await srcIcon.readBinary()

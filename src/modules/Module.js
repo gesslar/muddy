@@ -55,7 +55,7 @@ export default class Module {
 
   addChild(child) {
     if(this.#meta.get("children").has(child))
-      throw Sass.new(`Child '${child} is already present.`)
+      throw Sass.new(`Child '${child}' is already present.`)
 
     this.#meta.get("children").add(child)
     child.parent = this
