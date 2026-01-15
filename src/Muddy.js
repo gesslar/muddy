@@ -1,6 +1,6 @@
 import {ActionBuilder as AB, ACTIVITY, ActionRunner as AR} from "@gesslar/actioneer"
 import c from "@gesslar/colours"
-import {Data, DirectoryObject, Promised, Sass, Valid} from "@gesslar/toolkit"
+import {DirectoryObject, Promised, Sass, Valid} from "@gesslar/toolkit"
 import AdmZip from "adm-zip"
 import {mkdtempSync} from "node:fs"
 import os from "node:os"
@@ -11,7 +11,7 @@ import Type from "./Type.js"
 import Mfile from "./modules/Mfile.js"
 
 let glog
-let indent, indent2
+let indent
 
 const {SPLIT} = ACTIVITY
 
@@ -30,7 +30,6 @@ export default class Muddy {
 
     glog = log
     indent = c`{OK}•{/} `
-    indent2 = c`{OK}◦{/} `
 
     const builder = new AB(this)
     const runner = new AR(builder)
@@ -152,12 +151,16 @@ export default class Muddy {
   }
 
   #mapPackage = async ctx => {
-    const {jsonModules, srcDirectory} = ctx
+    const {jsonModules, srcDirectory, kind} = ctx
     const top = srcDirectory.trail.length
     const maptory = () => new Map([
       ["name", ""],
-      ["contents", new Set()],
-      ["modules", new Set()],
+      // Ordered set of child package nodes
+      ["children", new Set()],
+      // Ordered array of JSON definition objects that live at this node
+      ["definitions", []],
+      // Ordered array of module instances created from definitions in this subtree
+      ["modules", []],
       ["parent", null],
       ["jsonFile", null],
     ])
@@ -171,40 +174,49 @@ export default class Muddy {
     //    folder, and we, on the LAST one, do the full one showing the things
     //    like GUI, but also for ThresholdUI (the nested test one)
     for(const {jsonFile, jsonDefinitions} of jsonModules) {
-      const contents = pkg.get("contents")
-      const trail = jsonFile.parent.trail.slice(top + 1)
+      let trail = jsonFile.parent.trail.slice(top + 1)
 
-      let last, toAdd
+      // The first element in the trail is the kind directory (e.g. "scripts")
+      // which Mudlet does not represent as a folder node. Strip it so that
+      // directories under the kind (e.g. "GUI", "Test Level 1") become the
+      // first-level children in the package tree.
+      if(trail.length > 0 && trail[0] === kind)
+        trail = trail.slice(1)
 
-      // We have more than 0 elements in the trail, then we are not at the root
-      // level. And now we need to build it out!
+      // Start from the root package node and walk/create children for each
+      // element of the trail so the in-memory tree mirrors the directory tree.
+      let node = pkg
       if(trail.length > 0) {
-        trail.forEach((pieceOfBranch, index, arr) => {
-          const curr = maptory()
-            .set("name", pieceOfBranch)
-            .set("trail", trail.slice(index+1))
+        for(const pieceOfBranch of trail) {
+          const children = node.get("children")
 
-          if(index === 0) {
-            toAdd = curr
-          } else {
-            if(index === arr.length - 1)
-              curr.set("contents", new Set(jsonDefinitions))
-
-            last.get("contents").add(curr)
+          // Reuse an existing child node with the same name if present to
+          // preserve both structure and discovery order.
+          let child = [...children].find(c => c.get("name") === pieceOfBranch)
+          if(!child) {
+            child = maptory().set("name", pieceOfBranch)
+            children.add(child)
           }
 
-          last = curr
-        })
+          node = child
+        }
       } else {
-        // Ok, this stuff is at the top level (the so-called 'root').
-        toAdd = maptory()
-          .set("name", "")
-          .set("contents", new Set(jsonDefinitions))
+        // JSON file lives directly under src/, attach it to a child node with
+        // an empty name to distinguish it from the virtual "root".
+        const children = node.get("children")
+        let child = [...children].find(c => c.get("name") === "")
+        if(!child) {
+          child = maptory().set("name", "")
+          children.add(child)
+        }
+
+        node = child
       }
 
-      toAdd.set("jsonFile", jsonFile)
-
-      contents.add(toAdd)
+      // Attach JSON file and append its definitions at this leaf node.
+      node.set("jsonFile", jsonFile)
+      const defs = node.get("definitions")
+      defs.push(...jsonDefinitions)
     }
 
     return Object.assign(ctx, {pkg})
@@ -213,83 +225,114 @@ export default class Muddy {
   #loadLua = async ctx => {
     const {kind, pkg, srcDirectory} = ctx
 
-    await this.#_loadLua(kind, pkg, null, srcDirectory)
+    await this.#_loadLua(kind, pkg, srcDirectory)
 
     return ctx
   }
 
-  #_loadLua = async(kind, map, jsonFile=null, srcDirectory) => {
-    const contents = map.get("contents")
+  #_loadLua = async(kind, node, srcDirectory) => {
+    // First recurse into children so we always walk the whole tree.
+    const children = node.get("children")
+    for(const child of children)
+      await this.#_loadLua(kind, child, srcDirectory)
 
-    jsonFile ??= map.get("jsonFile")
+    const jsonFile = node.get("jsonFile")
+    const definitions = node.get("definitions")
 
-    const settled = await Promised.settle([...contents].map(async content => {
-      const inner = content.get("contents")
+    if(!jsonFile || !definitions || definitions.length === 0)
+      return
 
-      if(Data.isType(inner, "Map"))
-        return this.#_loadLua(kind, content, content.get("jsonFile") ?? jsonFile, srcDirectory)
+    for(const jsonDefinition of definitions) {
+      const {name: scriptName = "", script = ""} = jsonDefinition
 
-      const jsonDefinitions = [...inner]
+      if(!scriptName)
+        continue
 
-      for(const jsonDefinition of jsonDefinitions) {
-        const {name: scriptName="", script=""} = jsonDefinition
+      if(script)
+        continue
 
-        if(!scriptName)
-          continue
+      const expected = `${scriptName.replaceAll(/\s/g, "_")}.lua`
+      const scriptFile = jsonFile.parent.getFile(expected)
+      if(!await scriptFile.exists) {
+        glog.warn(c`{${kind}}${scriptFile.relativeTo(srcDirectory)}{/} does not exist`)
+        jsonDefinition.script = ""
+      } else {
+        const relative = scriptFile.relativeTo(this.#projectDirectory)
 
-        if(script)
-          continue
+        glog.success("Using script from", relative, "for", Type.TO_SINGLE[kind], scriptName)
 
-        const expected = `${scriptName.replaceAll(/\s/g, "_")}.lua`
-        const scriptFile = content.get("jsonFile").parent.getFile(expected)
-        if(!await scriptFile.exists) {
-          glog.warn(c`{${kind}}${scriptFile.relativeTo(srcDirectory)}{/} does not exist`)
-          jsonDefinition.script = ""
-        } else {
-          const relative = scriptFile.relativeTo(this.#projectDirectory)
+        const loaded = await scriptFile.read()
 
-          glog.success("Using script from", relative, "for", Type.TO_SINGLE[kind], scriptName)
-
-          const loaded = await scriptFile.read()
-
-          jsonDefinition.script = loaded
-        }
+        jsonDefinition.script = loaded
       }
-    }))
-
-    if(Promised.hasRejected(settled))
-      Promised.throw("Loading Lua scripts.", settled)
+    }
   }
 
   #createModule = ctx => {
     const {pkg, kind} = ctx
     const cl = Type.CLASS[kind]
 
-    const modules = this.#_createModule(cl, pkg.get("contents"))
+    const modules = this.#_createModule(cl, pkg, true)
 
-    pkg.set("modules", new Set(modules))
+    pkg.set("modules", modules)
 
     return ctx
   }
 
-  #_createModule = (cl, set) => {
-    const result = new Set()
+  #_createModule = (cl, node, isRoot=false) => {
+    const modules = []
 
-    for(const contents of set) {
-      if(Data.isType(contents, "Map") && contents.size > 0)
-        result.add(this.#_createModule(cl, contents.get("contents")))
-
-      if(Data.isPlainObject(contents))
-        result.add(new cl(contents))
+    // Recursively build modules for all children of this node and collect
+    // their resulting modules.
+    const children = node.get("children")
+    for(const child of children) {
+      const childModules = this.#_createModule(cl, child, false)
+      modules.push(...childModules)
     }
 
-    return result
+    // Then this node's own definitions become leaf modules.
+    const definitions = node.get("definitions")
+    if(definitions && definitions.length > 0) {
+      for(const def of definitions)
+        modules.push(new cl(def))
+    }
+
+    // For the root package node we never create a folder wrapper; its modules
+    // are the concatenation of its direct children and any nameless/top-level
+    // nodes. For any other node with a non-empty name, we wrap its modules in
+    // a folder Script/ScriptGroup so that directory structure is preserved.
+    if(isRoot) {
+      node.set("modules", modules)
+
+      return modules
+    }
+
+    const name = node.get("name") ?? ""
+
+    if(name.length > 0 && modules.length > 0) {
+      const folder = new cl({
+        name,
+        isFolder: "yes",
+        isActive: "yes",
+        script: "",
+      })
+
+      modules.forEach(m => folder.addChild(m))
+
+      node.set("modules", [folder])
+
+      return [folder]
+    }
+
+    node.set("modules", modules)
+
+    return modules
   }
 
   #buildXML = ctx => {
     const {kind, pkg} = ctx
     const packageTag = Type.PACKAGES[kind]
-    const modules = pkg.get("modules")
+    const modules = pkg.get("modules") ?? []
     const packageXml = this.#_buildXML(modules, kind)
 
     const frag = fragment().ele(packageTag).import(packageXml)
@@ -301,22 +344,17 @@ export default class Muddy {
  * Build a package's XML from its modules
  *
  * @private
- * @param {Set<Map>} src - A package set generated from this.#createModule
+   * @param {Array} src - An ordered array of modules generated from this.#createModule
  * @returns {import("xmlbuilder2").XMLBuilder} The XML fragment
  */
   #_buildXML = (src, kind) => {
     const frag = fragment()
 
-    if(src.size === 0)
+    if(!src || src.length === 0)
       return frag
 
-    for(const array of src) {
-      if(array.length > 0) {
-        for(const module of array) {
-          frag.import(module.toXMLFragment())
-        }
-      }
-    }
+    for(const module of src)
+      frag.import(module.toXMLFragment())
 
     glog.info(kind, "\n", frag.toString({prettyPrint: true}))
 

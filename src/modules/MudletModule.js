@@ -95,12 +95,19 @@ export default class MudletModule {
     const baseName = Util.capitalize(kind)
     const tag = this.isFolder === "yes" ? `${baseName}Group` : baseName
     const frag = fragment()
+    const children = this.children
 
-    frag
+    const root = frag
       .ele(tag, {isActive: this.isActive, isFolder: this.isFolder})
       .ele({name: this.name}).up()
       .ele({script: this.script}).up()
       .ele({packageName: this.packageName}).up()
+
+    // If this is a folder, serialize its children as nested modules.
+    if(this.isFolder === "yes" && children && children.size > 0) {
+      for(const child of children)
+        root.import(child.toXMLFragment())
+    }
 
     return frag
   }
