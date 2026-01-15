@@ -489,8 +489,7 @@ export default class Muddy {
   }
 
   #cleanUp = async() => {
-    // Commented out for debugging so we can inspect the temporary workspace.
-    // await this.#recursiveDelete(this.#temp, true)
+    await this.#recursiveDelete(this.#temp, true)
   }
 
   /* Utility methods */
