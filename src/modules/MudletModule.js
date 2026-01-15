@@ -1,7 +1,7 @@
 import {Sass, Util, Valid} from "@gesslar/toolkit"
 import {fragment} from "xmlbuilder2"
 
-export default class Module {
+export default class MudletModule {
   #meta = new Map()
 
   constructor(object={}) {
@@ -20,10 +20,15 @@ export default class Module {
     this.#meta.set("packageName", packageName) // i have no idea what this is used for
     this.#meta.set("parent", null)
     this.#meta.set("children", new Set())
+    this.#meta.set("id", Symbol(name))
   }
 
   get name() {
     return this.#meta.get("name")
+  }
+
+  get id() {
+    return this.#meta.get("id")
   }
 
   get isFolder() {
@@ -61,10 +66,20 @@ export default class Module {
     child.parent = this
 
     this.#meta.set("isFolder", "yes")
+
+    return this
   }
 
   get children() {
     return this.#meta.get("children")
+  }
+
+  *parents() {
+    let current = this.parent
+    while(current !== null) {
+      yield current
+      current = current.parent
+    }
   }
 
   toJSON() {

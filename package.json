@@ -20,18 +20,19 @@
     "update": "pnpm self-update && pnpx npm-check-updates -u && pnpm install",
     "test": "node src/cli.js test/ThresholdUI -n"
   },
-  "packageManager": "pnpm@10.27.0",
+  "packageManager": "pnpm@10.28.0",
   "dependencies": {
     "@gesslar/actioneer": "^2.0.2",
     "@gesslar/colours": "^0.8.0",
-    "@gesslar/toolkit": "^3.22.2",
+    "@gesslar/toolkit": "link:../toolkit",
     "adm-zip": "^0.5.16",
     "archiver": "^7.0.1",
     "commander": "^14.0.2",
     "xmlbuilder2": "^4.0.3"
   },
   "devDependencies": {
-    "@gesslar/uglier": "^1.0.0",
+    "@gesslar/uglier": "^1.1.0",
+    "console-ninja": "^1.0.0",
     "eslint": "^9.39.2"
   }
 }

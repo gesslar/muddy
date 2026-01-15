@@ -1,8 +1,8 @@
 import {Collection, Valid} from "@gesslar/toolkit"
 
-import Module from "./Module.js"
+import MudletModule from "./MudletModule.js"
 
-export default class Script extends Module {
+export default class Script extends MudletModule {
   #meta = new Map()
 
   constructor(object={}) {
@@ -36,9 +36,8 @@ export default class Script extends Module {
 
     // Add eventHandlerList as a container with string children
     const handlerList = frag.last().ele("eventHandlerList")
-    this.eventHandlerList.forEach(handler => {
-      handlerList.ele({string: handler})
-    })
+    this.eventHandlerList.forEach(handler => handlerList.ele({string: handler}))
+
     handlerList.up()
 
     return frag
