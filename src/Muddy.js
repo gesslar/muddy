@@ -1,6 +1,6 @@
 import {ActionBuilder as AB, ACTIVITY, ActionRunner as AR} from "@gesslar/actioneer"
 import c from "@gesslar/colours"
-import {Collection, DirectoryObject, Promised, Sass, Valid} from "@gesslar/toolkit"
+import {Data, DirectoryObject, Promised, Sass, Valid} from "@gesslar/toolkit"
 import AdmZip from "adm-zip"
 import {mkdtempSync} from "node:fs"
 import os from "node:os"
@@ -53,32 +53,17 @@ export default class Muddy {
         .do("Read mfile", this.#readMfile)
         .do("Discover src/ directory", this.#discoverSrcDirectory)
         .do("Process modules", SPLIT,
-          this.#split,
-          this.#rejoin,
+          this.#splitPackageDirs,
+          this.#rejoinPackageDirs,
           new AB()
-            .do("Scan for modules", this.#scanForModules)
-            .do("Parse modules", SPLIT,
-              this.#modulesSplit,
-              this.#rejoinModules,
-              new AB()
-                .do("Load the module", this.#loadModule)
-                .do("Discover and load Lua scripts", SPLIT,
-                  this.#scriptsSplit,
-                  this.#rejoinLoaded,
-                  new AB()
-                    .do("Discover and load Lua", this.#loadLuaScripts)
-                    .do("Create module from Lua", this.#createModule)
-                )
-            )
-        )
-        .do("Setup temporary workspace", this.#setupTemporaryWorkspace)
-        .do("Generate module XML", SPLIT,
-          this.#splitXMLWork,
-          this.#rejoinXMLWork,
-          new AB()
-            .do("Build the module tree", this.#buildModuleTree)
+            .do("Scan for Package JSON files", this.#scanForPackageJsonFiles)
+            .do("Load the discovered JSONs", this.#loadJsonDatums)
+            .do("Determine the shape of package branch", this.#mapPackage)
+            .do("Discover and load Lua", this.#loadLua)
+            .do("Create module from Lua", this.#createModule)
             .do("Generate XML fragment", this.#buildXML)
         )
+        .do("Setup temporary workspace", this.#setupTemporaryWorkspace)
         .do("Generate XML Document", this.#generateXMLDocument)
         .do("Generate config.lua", this.#generateConfigLua)
         .do("Process resources", this.#processResources)
@@ -91,6 +76,7 @@ export default class Muddy {
 
   #readMfile = async projectDirectory => {
     const mfileObject = projectDirectory.getFile("mfile")
+
     if(!await mfileObject.exists)
       return {fail: true, message: `No such file ${mfileObject.url}`}
 
@@ -117,157 +103,224 @@ export default class Muddy {
     return Object.assign(ctx, {srcDirectory})
   }
 
-  #split = async ctx => {
+  #splitPackageDirs = async ctx => {
     const {srcDirectory} = ctx
 
     return Type.PLURAL.map(e => ({kind: e, srcDirectory}))
   }
 
-  async #rejoin(orig, settled) {
+  #rejoinPackageDirs = async(orig, settled) => {
     if(Promised.hasRejected(settled))
-      Promised.throw("Processed modules.", settled)
+      Promised.throw(`Processing package JSON files.`, settled)
 
     const values = Promised.values(settled)
 
-    return Object.assign(
-      orig,
-      {modules: values}
-    )
+    return Object.assign(orig, {packages: values})
   }
 
-  #scanForModules = async ctx => {
+  #scanForPackageJsonFiles = async ctx => {
     const {kind, srcDirectory} = ctx
-    const pattern = `**/${kind}.json`
-    const found = await srcDirectory.glob(pattern)
-    const moduleFiles = found.files
 
     glog.info(c`Scanning for {${kind}}${kind}{/}`)
 
-    if(moduleFiles.length > 0)
-      moduleFiles.forEach(e => glog.use(indent).success(
-        c`Found {${kind}}${e.relativeTo(srcDirectory)}{/}`)
-      )
+    const pattern = `**/${kind}.json`
+    const found = await srcDirectory.glob(pattern)
+    const jsonFiles = found.files
 
-    return {srcDirectory, kind, moduleFiles}
+    jsonFiles.forEach(e =>
+      glog
+        .use(indent)
+        .success(c`Found {${kind}}${e.relativeTo(srcDirectory)}{/}`))
+
+    return {srcDirectory, kind, jsonFiles}
   }
 
-  #modulesSplit = async ctx => {
-    const {moduleFiles, kind, srcDirectory} = ctx
+  #loadJsonDatums = async ctx => {
+    const {jsonFiles} = ctx
 
-    return moduleFiles.map(e => ({moduleFile: e, kind, srcDirectory}))
+    const jsonModules = []
+
+    for(const jsonFile of jsonFiles) {
+      const defs = await jsonFile.loadData()
+
+      this.#normalizeBooleanValues(defs)
+
+      jsonModules.push({jsonFile, jsonDefinitions: defs})
+    }
+
+    return Object.assign(ctx, {jsonModules})
   }
 
-  #rejoinModules = async(orig, settled) => {
-    if(Promised.hasRejected(settled))
-      Promised.throw(`Processing ${orig.kind}.`, settled)
+  #mapPackage = async ctx => {
+    const {jsonModules, srcDirectory} = ctx
+    const top = srcDirectory.trail.length
+    const maptory = () => new Map([
+      ["name", ""],
+      ["contents", new Set()],
+      ["modules", new Set()],
+      ["parent", null],
+      ["jsonFile", null],
+    ])
 
-    const values = Promised.values(settled)
-    const loaded = values.map(e => e.loaded)
+    const pkg = maptory().set("name", "root")
 
-    return Object.assign(orig, {loaded})
+    // when we go in, we need to:
+    // 1. for each item in the trail, create a nested object, using the file
+    //    as the key (cos we can find it again!) -> GUI
+    // 2. every step that ISN'T the last one, we create a new nest that is a
+    //    folder, and we, on the LAST one, do the full one showing the things
+    //    like GUI, but also for ThresholdUI (the nested test one)
+    for(const {jsonFile, jsonDefinitions} of jsonModules) {
+      const contents = pkg.get("contents")
+      const trail = jsonFile.parent.trail.slice(top + 1)
+
+      let last, toAdd
+
+      // We have more than 0 elements in the trail, then we are not at the root
+      // level. And now we need to build it out!
+      if(trail.length > 0) {
+        trail.forEach((pieceOfBranch, index, arr) => {
+          const curr = maptory()
+            .set("name", pieceOfBranch)
+            .set("trail", trail.slice(index+1))
+
+          if(index === 0) {
+            toAdd = curr
+          } else {
+            if(index === arr.length - 1)
+              curr.set("contents", new Set(jsonDefinitions))
+
+            last.get("contents").add(curr)
+          }
+
+          last = curr
+        })
+      } else {
+        // Ok, this stuff is at the top level (the so-called 'root').
+        toAdd = maptory()
+          .set("name", "")
+          .set("contents", new Set(jsonDefinitions))
+      }
+
+      toAdd.set("jsonFile", jsonFile)
+
+      contents.add(toAdd)
+    }
+
+    return Object.assign(ctx, {pkg})
   }
 
-  #loadModule = async ctx => {
-    const {moduleFile} = ctx
-    ctx.module = [moduleFile, []]
+  #loadLua = async ctx => {
+    const {kind, pkg, srcDirectory} = ctx
 
-    if(!moduleFile)
-      return ctx
-
-    if(!await moduleFile.exists)
-      return ctx
-
-    const json = await moduleFile.loadData()
-    if(!json)
-      return ctx
-
-    this.#normalizeBooleanValues(json)
-
-    ctx.module[1].push(...json)
-
-    glog.success("Loaded", moduleFile.relativeTo(this.#projectDirectory))
+    await this.#_loadLua(kind, pkg, null, srcDirectory)
 
     return ctx
   }
 
-  #scriptsSplit = async ctx => {
-    const {kind, module, srcDirectory} = ctx
-    const [moduleFile, scripts] = module
-    const moduleDir = moduleFile.parent
-    const mapped = scripts.map(e => ({
-      moduleDir,
-      definition: e,
-      kind,
-      srcDirectory
+  #_loadLua = async(kind, map, jsonFile=null, srcDirectory) => {
+    const contents = map.get("contents")
+
+    jsonFile ??= map.get("jsonFile")
+
+    const settled = await Promised.settle([...contents].map(async content => {
+      const inner = content.get("contents")
+
+      if(Data.isType(inner, "Map"))
+        return this.#_loadLua(kind, content, content.get("jsonFile") ?? jsonFile, srcDirectory)
+
+      const jsonDefinitions = [...inner]
+
+      for(const jsonDefinition of jsonDefinitions) {
+        const {name: scriptName="", script=""} = jsonDefinition
+
+        if(!scriptName)
+          continue
+
+        if(script)
+          continue
+
+        const expected = `${scriptName.replaceAll(/\s/g, "_")}.lua`
+        const scriptFile = content.get("jsonFile").parent.getFile(expected)
+        if(!await scriptFile.exists) {
+          glog.warn(c`{${kind}}${scriptFile.relativeTo(srcDirectory)}{/} does not exist`)
+          jsonDefinition.script = ""
+        } else {
+          const relative = scriptFile.relativeTo(this.#projectDirectory)
+
+          glog.success("Using script from", relative, "for", Type.TO_SINGLE[kind], scriptName)
+
+          const loaded = await scriptFile.read()
+
+          jsonDefinition.script = loaded
+        }
+      }
     }))
 
-    return mapped
-  }
-
-  #rejoinLoaded = async(orig, settled) => {
     if(Promised.hasRejected(settled))
       Promised.throw("Loading Lua scripts.", settled)
-
-    const values  = Promised.values(settled)
-
-    return Object.assign(orig,
-      {
-        loaded: values.map(e => ({
-          definition: e.definition,
-          $module: e.module
-        })
-        )
-      }
-    )
   }
 
-  #loadLuaScripts = async ctx => {
-    const {moduleDir, definition, kind, srcDirectory} = ctx
-    const {name: scriptName="", script=""} = definition
+  #createModule = ctx => {
+    const {pkg, kind} = ctx
+    const cl = Type.CLASS[kind]
 
-    // This should already have been validated out by this point.
-    // But we're not doing validation yet.
-    if(!scriptName)
-      return ctx
+    const modules = this.#_createModule(cl, pkg.get("contents"))
 
-    // If there's an inline script, this Trudeaus any file-reference.
-    if(script)
-      return ctx
+    pkg.set("modules", new Set(modules))
 
-    // While folders _can_ have scripts, they would be inline, have already
-    // been dealth with above.
-    if(definition.isFolder === "no") {
-      const expected = `${scriptName.replaceAll(/\s/g, "_")}.lua`
-      const scriptFile = moduleDir.getFile(expected)
-      if(!await scriptFile.exists) {
-        glog.warn(c`{${kind}}${scriptFile.relativeTo(srcDirectory)}{/} does not exist`)
-        ctx.definition.script = ""
-      } else {
-        glog.success(
-          "Using script from",
-          scriptFile.relativeTo(this.#projectDirectory),
-          "for",
-          Type.TO_SINGLE[kind],
-          `'${scriptName}'`
-        )
+    return ctx
+  }
 
-        ctx.definition.script = await scriptFile.read()
+  #_createModule = (cl, set) => {
+    const result = new Set()
+
+    for(const contents of set) {
+      if(Data.isType(contents, "Map") && contents.size > 0)
+        result.add(this.#_createModule(cl, contents.get("contents")))
+
+      if(Data.isPlainObject(contents))
+        result.add(new cl(contents))
+    }
+
+    return result
+  }
+
+  #buildXML = ctx => {
+    const {kind, pkg} = ctx
+    const packageTag = Type.PACKAGES[kind]
+    const modules = pkg.get("modules")
+    const packageXml = this.#_buildXML(modules, kind)
+
+    const frag = fragment().ele(packageTag).import(packageXml)
+
+    return frag
+  }
+
+  /**
+ * Build a package's XML from its modules
+ *
+ * @private
+ * @param {Set<Map>} src - A package set generated from this.#createModule
+ * @returns {import("xmlbuilder2").XMLBuilder} The XML fragment
+ */
+  #_buildXML = (src, kind) => {
+    const frag = fragment()
+
+    if(src.size === 0)
+      return frag
+
+    for(const array of src) {
+      if(array.length > 0) {
+        for(const module of array) {
+          frag.import(module.toXMLFragment())
+        }
       }
     }
 
-    return ctx
-  }
+    glog.info(kind, "\n", frag.toString({prettyPrint: true}))
 
-  #createModule = async ctx => {
-    const {kind, definition} = ctx
-
-    // Fetch the class constructor
-    const cl = Type.CLASS[kind]
-    const module = new cl(definition)
-
-    ctx.module = module
-
-    return ctx
+    return frag
   }
 
   #setupTemporaryWorkspace = async ctx => {
@@ -277,117 +330,10 @@ export default class Muddy {
     return ctx
   }
 
-  #splitXMLWork = async ctx => {
-    const {modules, srcDirectory} = ctx
-
-    const split = modules.map(e => (
-      {
-        kind: e.kind,
-        modules: Collection.zip(
-          e.moduleFiles,
-          e.loaded,
-        ),
-        loaded: e.loaded,
-        srcDirectory
-      }
-    ))
-
-    return split
-  }
-
-  #rejoinXMLWork = async(original, settled) => {
-    if(Promised.hasRejected(settled))
-      Promised.throw("Creating XML.", settled)
-
-    original.xmlFragments = Promised.values(settled)
-
-    return original
-  }
-
-  #buildModuleTree = async ctx => {
-    const {kind, modules, loaded, srcDirectory} = ctx
-    const kindClass = Type.CLASS[kind]
-    const top = srcDirectory.trail.length
-
-    glog.info(c`Building tree for {${kind}}${kind}{/}`)
-
-    const structure = []
-    let fileIndex = 0
-
-    for(const [file] of modules) {
-      const local = []
-      const trail = file.parent.trail.slice(top)
-
-      local.push(
-        new kindClass({
-          name: trail.shift(),
-          isActive: "yes",
-          isFolder: "yes",
-        })
-      )
-
-      let last = local.at(-1)
-
-      for(const leaf of trail) {
-        glog.info(c`Building sub-tree for {${kind}}${leaf}{/}`)
-        const newLeaf = new kindClass({
-          name: leaf,
-          isActive: "yes",
-          isFolder: "yes",
-        })
-
-        last.addChild(newLeaf)
-
-        last = newLeaf
-      }
-
-      const fileLoaded = Array.isArray(loaded[fileIndex])
-        ? loaded[fileIndex]
-        : []
-      for(const {definition, $module} of fileLoaded) {
-        glog.use(indent2).info(c`Adding {${kind}}${definition.name}{/}`)
-
-        last.addChild($module)
-      }
-
-      fileIndex++
-      structure.push(local)
-    }
-
-    return {kind, structure}
-  }
-
-  #buildXML = async ctx => {
-    const {kind, structure: folders} = ctx
-    const pkg = Type.PACKAGES[kind]
-    const frag = fragment().ele(pkg)
-
-    return frag.import(this.#recursiveBuild(folders))
-  }
-
-  // Instead of root-based, make it array-based and recurse when you have a new
-  // array, and process it when it's just a single item. reverse of
-  // recurseDelete. Not parallelizated because order matters here.
-  //
-  // Note: The AI reviewer added the below comment, supposedly to fend off
-  // against vicious cyber-attacks from TypeScript cultists who cargo about
-  // their safety nets like they're not lies wrapped in the minifier they call
-  // a "compiler." I'll let it stand. Cos it's funny.
-  //
-  // Uses language features: arrays have .length > 0, non-arrays (Module objects)
-  // fail curr.length > 0 (undefined > 0 is false) and fall through to
-  // toXMLFragment().
-  #recursiveBuild = arr => arr.reduce((acc, curr) => {
-    if(curr.length > 0)
-      return acc.import(this.#recursiveBuild(curr))
-
-    return acc.import(curr.toXMLFragment())
-  }, fragment())
-
   #generateXMLDocument = async ctx => {
     glog.info(`Converting scanned data to Mudlet package XML now`)
 
-    const {mfile, xmlFragments, workDirectory} = ctx
+    const {packages: xmlFragments, mfile, workDirectory} = ctx
 
     const root = create({version: "1.0", encoding: "UTF-8"})
       .ele("MudletPackage", {version: "1.001"})
@@ -505,7 +451,8 @@ export default class Muddy {
   }
 
   #cleanUp = async() => {
-    await this.#recursiveDelete(this.#temp, true)
+    // Commented out for debugging so we can inspect the temporary workspace.
+    // await this.#recursiveDelete(this.#temp, true)
   }
 
   /* Utility methods */

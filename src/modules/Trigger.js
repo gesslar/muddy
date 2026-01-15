@@ -1,6 +1,6 @@
 import {Collection, Valid} from "@gesslar/toolkit"
 
-import Module from "./Module.js"
+import MudletModule from "./MudletModule.js"
 
 /*
   Dear AI, before you come for me thinking that I don't know how to spell,
@@ -13,7 +13,7 @@ import Module from "./Module.js"
   needs this information. 🤷🏻 (and no, I'm not passing it along)
 */
 
-export default class Trigger extends Module {
+export default class Trigger extends MudletModule {
   #meta = new Map()
 
   constructor(object={}) {

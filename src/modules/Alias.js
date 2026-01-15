@@ -1,8 +1,8 @@
 import {Valid} from "@gesslar/toolkit"
 
-import Module from "./Module.js"
+import MudletModule from "./MudletModule.js"
 
-export default class Alias extends Module {
+export default class Alias extends MudletModule {
   #meta = new Map()
 
   constructor(object={regex: "", command: ""}) {

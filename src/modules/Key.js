@@ -1,8 +1,8 @@
 import {Valid} from "@gesslar/toolkit"
 
-import Module from "./Module.js"
+import MudletModule from "./MudletModule.js"
 
-export default class Key extends Module {
+export default class Key extends MudletModule {
   #meta = new Map()
 
   constructor(object={}) {
