@@ -12,8 +12,8 @@ importers:
   .:
     dependencies:
       '@gesslar/actioneer':
-        specifier: ^2.0.2
-        version: 2.0.2
+        specifier: ^2.1.0
+        version: 2.1.0
       '@gesslar/colours':
         specifier: ^0.8.0
         version: 0.8.0
@@ -91,8 +91,8 @@ packages:
     resolution: {integrity: sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@gesslar/actioneer@2.0.2':
-    resolution: {integrity: sha512-Ss2ljf1wyYKS/iiPmRHqGvLzd7JEOCbgh8D/1vhbV3i1Xl1o5mz7Cg/52dSe72/9myDEAIPcU0wdttGhPZb0KA==}
+  '@gesslar/actioneer@2.1.0':
+    resolution: {integrity: sha512-ouhta23W3+iO64fgfLnA61aK14BARenvmMqbrLyfHlNGYNZboOysYSnWRDtGptqKXkmZxBOuJBSykDlYw/+LmQ==}
     engines: {node: '>=22'}
 
   '@gesslar/colours@0.7.1':
@@ -815,7 +815,7 @@ snapshots:
       '@eslint/core': 0.17.0
       levn: 0.4.1
 
-  '@gesslar/actioneer@2.0.2':
+  '@gesslar/actioneer@2.1.0':
     dependencies:
       '@gesslar/toolkit': link:../toolkit
 
