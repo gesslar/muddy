@@ -18,7 +18,10 @@
     "lint": "eslint",
     "lint:fix": "eslint --fix",
     "update": "pnpm self-update && pnpx npm-check-updates -u && pnpm install",
-    "test": "node src/cli.js test/ThresholdUI -n"
+    "test": "node --test",
+    "test:watch": "node --test --watch",
+    "test:unit": "node --test test/unit/**/*.test.js",
+    "muddy": "node src/cli.js test/ThresholdUI -n"
   },
   "packageManager": "pnpm@10.28.0",
   "dependencies": {
