@@ -672,11 +672,6 @@ export default class Muddy {
 
     glog.info(`'${mpackageFile.path}' written to disk (${size.toLocaleString()} bytes)`)
 
-    // A robot made me return context even though there's nothing to do now.
-    // I hope the ether enjoys the context! Yumyum!
-    //
-    // Addendum, yes, there IS one more step? It's #cleanUp, but it doesn't use
-    // the context. Pedantry doesn't look good on you!
     return ctx
   }
 
