@@ -1,6 +1,6 @@
 import {ActionBuilder as AB, ACTIVITY, ActionRunner as AR} from "@gesslar/actioneer"
 import c from "@gesslar/colours"
-import {DirectoryObject, Promised, Sass, Valid} from "@gesslar/toolkit"
+import {DirectoryObject, FileObject, Promised, Sass, Valid} from "@gesslar/toolkit"
 import AdmZip from "adm-zip"
 import {mkdtempSync} from "node:fs"
 import os from "node:os"
@@ -15,10 +15,28 @@ let indent
 
 const {SPLIT} = ACTIVITY
 
+/**
+ * Main Muddy package builder class.
+ *
+ * Orchestrates the process of converting a source directory structure into
+ * a Mudlet package (.mpackage) file by:
+ * - Reading package metadata from mfile
+ * - Discovering and processing module definitions (scripts, aliases, triggers, etc.)
+ * - Building an XML document representation
+ * - Packaging everything into a compressed .mpackage file
+ */
 export default class Muddy {
   #projectDirectory
   #temp
 
+  /**
+   * Main entry point for the Muddy package builder.
+   *
+   * @param {DirectoryObject} projectDirectory - The root directory of the project to build
+   * @param {import('@gesslar/glog').Glog} log - Logger instance for output
+   * @returns {Promise<unknown>} The result of the build process
+   * @throws {Error} If execution fails at any step
+   */
   async run(projectDirectory, log) {
     Valid.type(projectDirectory, "DirectoryObject")
     Valid.type(log, "Glog")
@@ -67,12 +85,20 @@ export default class Muddy {
         .do("Generate config.lua", this.#generateConfigLua)
         .do("Process resources", this.#processResources)
         .do("Zzzzzzzzzzip", this.#closeTheBarnDoor)
-        .do("Clean up after ourselves.", this.#cleanUp)
+        .done(this.#cleanUp)
     } catch(error) {
       throw Sass.new("Building the action.", error)
     }
   }
 
+  /**
+   * Reads and validates the mfile metadata file from the project root.
+   *
+   * @private
+   * @param {DirectoryObject} projectDirectory - The project root directory
+   * @returns {Promise<{projectDirectory: DirectoryObject, mfile: object} | {fail: boolean, message: string}>}
+   *   The context with loaded mfile data, or failure object if mfile doesn't exist
+   */
   #readMfile = async projectDirectory => {
     const mfileObject = projectDirectory.getFile("mfile")
 
@@ -92,6 +118,15 @@ export default class Muddy {
     return {projectDirectory, mfile}
   }
 
+  /**
+   * Discovers and validates the existence of the src/ directory.
+   *
+   * @private
+   * @param {object} ctx - The context object
+   * @param {DirectoryObject} ctx.projectDirectory - The project root directory
+   * @returns {Promise<object>} Context with added srcDirectory property
+   * @throws {Error} If src/ directory doesn't exist
+   */
   #discoverSrcDirectory = async ctx => {
     const {projectDirectory} = ctx
     const srcDirectory = projectDirectory.getDirectory("src")
@@ -102,12 +137,29 @@ export default class Muddy {
     return Object.assign(ctx, {srcDirectory})
   }
 
+  /**
+   * Splits processing into parallel tasks for each module type (aliases, scripts, triggers, etc.).
+   *
+   * @private
+   * @param {object} ctx - The context object
+   * @param {DirectoryObject} ctx.srcDirectory - The src directory
+   * @returns {Promise<Array<{kind: string, srcDirectory: DirectoryObject}>>} Array of contexts for each module type
+   */
   #splitPackageDirs = async ctx => {
     const {srcDirectory} = ctx
 
     return Type.PLURAL.map(e => ({kind: e, srcDirectory}))
   }
 
+  /**
+   * Rejoins the split parallel processing results back into the main context.
+   *
+   * @private
+   * @param {object} orig - The original context object
+   * @param {Array<Promise>} settled - The settled promises from parallel processing
+   * @returns {Promise<object>} Context with packages array containing all processed modules
+   * @throws {Error} If any of the parallel tasks rejected
+   */
   #rejoinPackageDirs = async(orig, settled) => {
     if(Promised.hasRejected(settled))
       Promised.throw(`Processing package JSON files.`, settled)
@@ -117,6 +169,15 @@ export default class Muddy {
     return Object.assign(orig, {packages: values})
   }
 
+  /**
+   * Scans for JSON definition files matching the module type pattern.
+   *
+   * @private
+   * @param {object} ctx - The context object
+   * @param {string} ctx.kind - The module type (e.g., 'scripts', 'aliases')
+   * @param {DirectoryObject} ctx.srcDirectory - The src directory to scan
+   * @returns {Promise<object>} Context with jsonFiles array
+   */
   #scanForPackageJsonFiles = async ctx => {
     const {kind, srcDirectory} = ctx
 
@@ -134,6 +195,14 @@ export default class Muddy {
     return {srcDirectory, kind, jsonFiles}
   }
 
+  /**
+   * Loads JSON definition files and normalizes their boolean values.
+   *
+   * @private
+   * @param {object} ctx - The context object
+   * @param {Array<FileObject>} ctx.jsonFiles - Array of JSON files to load
+   * @returns {Promise<object>} Context with jsonModules array
+   */
   #loadJsonDatums = async ctx => {
     const {jsonFiles} = ctx
 
@@ -150,6 +219,19 @@ export default class Muddy {
     return Object.assign(ctx, {jsonModules})
   }
 
+  /**
+   * Maps JSON modules into a hierarchical package tree structure that mirrors the directory layout.
+   *
+   * Creates a nested tree where each node represents a directory level, with definitions
+   * attached to the appropriate nodes based on their file system location.
+   *
+   * @private
+   * @param {object} ctx - The context object
+   * @param {Array} ctx.jsonModules - Array of loaded JSON modules with their file paths
+   * @param {DirectoryObject} ctx.srcDirectory - The src directory
+   * @param {string} ctx.kind - The module type
+   * @returns {Promise<object>} Context with pkg (package tree) property
+   */
   #mapPackage = async ctx => {
     const {jsonModules, srcDirectory, kind} = ctx
     const top = srcDirectory.trail.length
@@ -222,6 +304,16 @@ export default class Muddy {
     return Object.assign(ctx, {pkg})
   }
 
+  /**
+   * Loads Lua script files referenced in JSON definitions.
+   *
+   * @private
+   * @param {object} ctx - The context object
+   * @param {string} ctx.kind - The module type
+   * @param {Map} ctx.pkg - The package tree
+   * @param {DirectoryObject} ctx.srcDirectory - The src directory
+   * @returns {Promise<object>} The context object
+   */
   #loadLua = async ctx => {
     const {kind, pkg, srcDirectory} = ctx
 
@@ -230,6 +322,18 @@ export default class Muddy {
     return ctx
   }
 
+  /**
+   * Recursively loads Lua scripts for a package tree node and its children.
+   *
+   * For each definition that references a script file, this loads the .lua file
+   * from disk and attaches it to the definition.
+   *
+   * @private
+   * @param {string} kind - The module type
+   * @param {Map} node - The current package tree node
+   * @param {DirectoryObject} srcDirectory - The src directory for relative path resolution
+   * @returns {Promise<void>}
+   */
   #_loadLua = async(kind, node, srcDirectory) => {
     // First recurse into children so we always walk the whole tree.
     const children = node.get("children")
@@ -268,6 +372,15 @@ export default class Muddy {
     }
   }
 
+  /**
+   * Creates module instances from the package tree definitions.
+   *
+   * @private
+   * @param {object} ctx - The context object
+   * @param {Map} ctx.pkg - The package tree with loaded definitions
+   * @param {string} ctx.kind - The module type
+   * @returns {object} The context object
+   */
   #createModule = ctx => {
     const {pkg, kind} = ctx
     const cl = Type.CLASS[kind]
@@ -279,6 +392,18 @@ export default class Muddy {
     return ctx
   }
 
+  /**
+   * Recursively creates module instances for a package tree node.
+   *
+   * Creates module instances for all definitions in the tree, wrapping directory
+   * structures in folder modules to preserve the hierarchy.
+   *
+   * @private
+   * @param {Function} cl - The module class constructor
+   * @param {Map} node - The current package tree node
+   * @param {boolean} [isRoot=false] - Whether this is the root node
+   * @returns {Array} Array of module instances
+   */
   #_createModule = (cl, node, isRoot=false) => {
     const modules = []
 
@@ -329,6 +454,15 @@ export default class Muddy {
     return modules
   }
 
+  /**
+   * Builds XML fragments for a package type.
+   *
+   * @private
+   * @param {object} ctx - The context object
+   * @param {string} ctx.kind - The module type
+   * @param {Map} ctx.pkg - The package tree with modules
+   * @returns {import('xmlbuilder2').XMLBuilder} XML fragment for the package
+   */
   #buildXML = ctx => {
     const {kind, pkg} = ctx
     const packageTag = Type.PACKAGES[kind]
@@ -341,12 +475,12 @@ export default class Muddy {
   }
 
   /**
- * Build a package's XML from its modules
- *
- * @private
-   * @param {Array} src - An ordered array of modules generated from this.#createModule
- * @returns {import("xmlbuilder2").XMLBuilder} The XML fragment
- */
+   * Builds XML fragments from an array of module instances.
+   *
+   * @private
+   * @param {Array} src - An ordered array of modules
+   * @returns {import("xmlbuilder2").XMLBuilder} The XML fragment
+   */
   #_buildXML = src => {
     const frag = fragment()
 
@@ -359,6 +493,13 @@ export default class Muddy {
     return frag
   }
 
+  /**
+   * Creates a temporary work directory for staging package files.
+   *
+   * @private
+   * @param {object} ctx - The context object
+   * @returns {Promise<object>} Context with workDirectory property
+   */
   #setupTemporaryWorkspace = async ctx => {
     ctx.workDirectory = this.#temp.getDirectory("work")
     await ctx.workDirectory.assureExists()
@@ -366,6 +507,19 @@ export default class Muddy {
     return ctx
   }
 
+  /**
+   * Generates the complete Mudlet package XML document.
+   *
+   * Combines all module XML fragments into a single MudletPackage XML document
+   * with proper DTD declaration.
+   *
+   * @private
+   * @param {object} ctx - The context object
+   * @param {Array} ctx.packages - Array of XML fragments for each module type
+   * @param {object} ctx.mfile - The mfile metadata
+   * @param {DirectoryObject} ctx.workDirectory - The temporary work directory
+   * @returns {Promise<object>} Context with xmlFile property
+   */
   #generateXMLDocument = async ctx => {
     glog.info(`Converting scanned data to Mudlet package XML now`)
 
@@ -388,6 +542,15 @@ export default class Muddy {
     return ctx
   }
 
+  /**
+   * Generates the config.lua file with package metadata.
+   *
+   * @private
+   * @param {object} ctx - The context object
+   * @param {object} ctx.mfile - The mfile metadata
+   * @param {DirectoryObject} ctx.workDirectory - The temporary work directory
+   * @returns {Promise<object>} Context with configFile property
+   */
   #generateConfigLua = async ctx => {
     const {mfile, workDirectory} = ctx
 
@@ -405,6 +568,19 @@ export default class Muddy {
     return ctx
   }
 
+  /**
+   * Processes resource files (icon, additional files) from src/resources.
+   *
+   * Copies icon to .mudlet/Icon/ directory and recursively copies all other
+   * resources to the work directory.
+   *
+   * @private
+   * @param {object} ctx - The context object
+   * @param {object} ctx.mfile - The mfile metadata (may contain icon filename)
+   * @param {DirectoryObject} ctx.workDirectory - The temporary work directory
+   * @param {DirectoryObject} ctx.srcDirectory - The src directory
+   * @returns {Promise<object>} The context object
+   */
   #processResources = async ctx => {
     const {mfile, workDirectory, srcDirectory} = ctx
 
@@ -441,6 +617,14 @@ export default class Muddy {
     return ctx
   }
 
+  /**
+   * Recursively copies files and directories from resources to work directory.
+   *
+   * @private
+   * @param {DirectoryObject} res - The source resources directory
+   * @param {DirectoryObject} work - The destination work directory
+   * @returns {Promise<void>}
+   */
   #recursiveResourcesCopy = async(res, work) => {
     const {files, directories} = await res.read()
 
@@ -461,6 +645,16 @@ export default class Muddy {
     // ^^^ we'll worry about errors later. idk what to do just yet.
   }
 
+  /**
+   * Creates the final .mpackage zip file from the work directory.
+   *
+   * @private
+   * @param {object} ctx - The context object
+   * @param {object} ctx.mfile - The mfile metadata
+   * @param {DirectoryObject} ctx.projectDirectory - The project root directory
+   * @param {DirectoryObject} ctx.workDirectory - The temporary work directory with all staged files
+   * @returns {Promise<object>} The context object
+   */
   #closeTheBarnDoor = async ctx => {
     const {mfile, projectDirectory, workDirectory} = ctx
 
@@ -486,12 +680,27 @@ export default class Muddy {
     return ctx
   }
 
+  /**
+   * Cleans up temporary directory after package creation.
+   *
+   * @private
+   * @returns {Promise<void>}
+   */
   #cleanUp = async() => {
     await this.#recursiveDelete(this.#temp, true)
   }
 
   /* Utility methods */
 
+  /**
+   * Normalizes boolean values in object entries to 'yes'/'no' strings.
+   *
+   * Mudlet XML format expects 'yes'/'no' strings rather than true/false booleans.
+   *
+   * @private
+   * @param {Array<object>} object - Array of objects to normalize
+   * @returns {Array<object>} The normalized object array
+   */
   #normalizeBooleanValues = object => {
     for(const entry of object) {
       Object.entries(entry).forEach(([k,v]) => {
@@ -506,6 +715,14 @@ export default class Muddy {
     return object
   }
 
+  /**
+   * Recursively deletes a directory and its contents.
+   *
+   * @private
+   * @param {DirectoryObject} dir - The directory to delete
+   * @param {boolean} [includeSelf=false] - Whether to delete the directory itself
+   * @returns {Promise<void>}
+   */
   #recursiveDelete = async(dir, includeSelf=false) => {
     const {files, directories} = await dir.read()
 
@@ -524,5 +741,11 @@ export default class Muddy {
     includeSelf && await dir.delete()
   }
 
+  /**
+   * Generates an ISO 8601 formatted timestamp with timezone.
+   *
+   * @private
+   * @returns {string} ISO timestamp in format YYYY-MM-DDTHH:mm:ss+0000
+   */
   #iso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "+0000")
 }

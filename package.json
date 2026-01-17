@@ -25,7 +25,7 @@
   },
   "packageManager": "pnpm@10.28.0",
   "dependencies": {
-    "@gesslar/actioneer": "^2.0.2",
+    "@gesslar/actioneer": "^2.1.0",
     "@gesslar/colours": "^0.8.0",
     "@gesslar/toolkit": "link:../toolkit",
     "adm-zip": "^0.5.16",

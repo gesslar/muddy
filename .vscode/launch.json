@@ -7,7 +7,7 @@
       "name": "Debug Muddy CLI (ThresholdUI)",
       "program": "${workspaceFolder}/src/cli.js",
       "args": [
-        "${workspaceFolder}/test/ThresholdUI",
+        "${workspaceFolder}/work/ThresholdUI",
         "-n"
       ],
       "skipFiles": [
@@ -19,10 +19,10 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Debug Muddy CLI (test/test)",
+      "name": "Debug Muddy CLI (work/test)",
       "program": "${workspaceFolder}/src/cli.js",
       "args": [
-        "${workspaceFolder}/test/test",
+        "${workspaceFolder}/work/test",
         "-n"
       ],
       "skipFiles": [
