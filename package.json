@@ -17,6 +17,7 @@
   "scripts": {
     "lint": "eslint",
     "lint:fix": "eslint --fix",
+    "types": "tsc -p tsconfig.types.json",
     "update": "pnpm self-update && pnpx npm-check-updates -u && pnpm install",
     "test": "node --test",
     "test:watch": "node --test --watch",
@@ -27,7 +28,7 @@
   "dependencies": {
     "@gesslar/actioneer": "^2.1.0",
     "@gesslar/colours": "^0.8.0",
-    "@gesslar/toolkit": "link:../toolkit",
+    "@gesslar/toolkit": "^3.23.0",
     "adm-zip": "^0.5.16",
     "archiver": "^7.0.1",
     "commander": "^14.0.2",
@@ -36,6 +37,7 @@
   "devDependencies": {
     "@gesslar/uglier": "^1.1.0",
     "console-ninja": "^1.0.0",
-    "eslint": "^9.39.2"
+    "eslint": "^9.39.2",
+    "typescript": "^5.9.3"
   }
 }
