@@ -347,7 +347,7 @@ export default class Muddy {
    * @param {Array} src - An ordered array of modules generated from this.#createModule
  * @returns {import("xmlbuilder2").XMLBuilder} The XML fragment
  */
-  #_buildXML = (src, kind) => {
+  #_buildXML = src => {
     const frag = fragment()
 
     if(!src || src.length === 0)
@@ -355,8 +355,6 @@ export default class Muddy {
 
     for(const module of src)
       frag.import(module.toXMLFragment())
-
-    glog.info(kind, "\n", frag.toString({prettyPrint: true}))
 
     return frag
   }
