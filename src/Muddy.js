@@ -686,8 +686,10 @@ export default class Muddy {
    * @private
    * @returns {Promise<void>}
    */
-  #cleanUp = async() => {
+  #cleanUp = async ctx => {
     await this.#recursiveDelete(this.#temp, true)
+
+    return ctx
   }
 
   /* Utility methods */
