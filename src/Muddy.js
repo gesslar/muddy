@@ -1,6 +1,6 @@
 import {ActionBuilder as AB, ACTIVITY, ActionRunner as AR} from "@gesslar/actioneer"
 import c from "@gesslar/colours"
-import {DirectoryObject, FileObject, Promised, Sass, Valid} from "@gesslar/toolkit"
+import {Data, DirectoryObject, FileObject, FileSystem, Promised, Sass, Valid} from "@gesslar/toolkit"
 import AdmZip from "adm-zip"
 import {mkdtempSync} from "node:fs"
 import os from "node:os"
@@ -25,7 +25,7 @@ import Mfile from "./modules/Mfile.js"
 let /** @type {Glog} */ glog
 let /** @type {string} */ indent
 
-const {SPLIT} = ACTIVITY
+const {IF, SPLIT} = ACTIVITY
 
 /**
  * Main Muddy package builder class.
@@ -97,6 +97,7 @@ export default class Muddy {
         .do("Generate config.lua", this.#generateConfigLua)
         .do("Process resources", this.#processResources)
         .do("Zzzzzzzzzzip", this.#closeTheBarnDoor)
+        .do("Write .output", IF, ctx => ctx.mfile.outputFile, this.#writeOutputFile)
         .done(this.#cleanUp)
     } catch(error) {
       throw Sass.new("Building the action.", error)
@@ -653,7 +654,26 @@ export default class Muddy {
     mpackage.writeZip(mpackageFile.path)
     const size = await mpackageFile.size()
 
-    glog.info(`'${mpackageFile.path}' written to disk (${size.toLocaleString()} bytes)`)
+    glog.info(c`{<B}${mpackageFile.path}{B>} written to disk (${size.toLocaleString()} bytes)`)
+
+    return Object.assign(ctx, {mpackageFile})
+  }
+
+  #writeOutputFile = async ctx => {
+    const {mfile, projectDirectory, mpackageFile} = ctx
+    const outputFile = projectDirectory.getFile(".output")
+    const output = JSON.stringify({
+      name: mfile.package,
+      path: Data.prepend(FileSystem.relativeOrAbsolute(projectDirectory, mpackageFile), "/")
+    })
+
+    if(await outputFile.exists)
+      await outputFile.delete()
+
+    await outputFile.write(Data.append(output, "\n"))
+
+    const size = await outputFile.size()
+    glog.info(c`{<B}${outputFile.path}{B>} written to disk (${size.toLocaleString()} bytes)`)
 
     return ctx
   }
