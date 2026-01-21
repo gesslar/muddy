@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@gesslar/actioneer':
-        specifier: ^2.1.0
-        version: 2.1.0(eslint@9.39.2)
+        specifier: ^2.2.0
+        version: 2.2.0(eslint@9.39.2)
       '@gesslar/colours':
         specifier: ^0.8.0
         version: 0.8.0
@@ -91,8 +91,8 @@ packages:
     resolution: {integrity: sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@gesslar/actioneer@2.1.0':
-    resolution: {integrity: sha512-ouhta23W3+iO64fgfLnA61aK14BARenvmMqbrLyfHlNGYNZboOysYSnWRDtGptqKXkmZxBOuJBSykDlYw/+LmQ==}
+  '@gesslar/actioneer@2.2.0':
+    resolution: {integrity: sha512-efpJ7H9GYfcpxMolHgIcS6q735/2ZkrDC5zvIuSMb9Ct7ms7GypZfHeABFqBJtgQWTQzjaYNSD3ayvAy/FCwPw==}
     engines: {node: '>=22'}
 
   '@gesslar/colours@0.8.0':
@@ -862,7 +862,7 @@ snapshots:
       '@eslint/core': 0.17.0
       levn: 0.4.1
 
-  '@gesslar/actioneer@2.1.0(eslint@9.39.2)':
+  '@gesslar/actioneer@2.2.0(eslint@9.39.2)':
     dependencies:
       '@gesslar/toolkit': 3.24.0(eslint@9.39.2)
     transitivePeerDependencies:
