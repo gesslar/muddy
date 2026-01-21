@@ -14,6 +14,9 @@
   "keywords": [],
   "license": "Unlicense",
   "main": "src/cli.js",
+  "engines": {
+    "node": ">=v24.13.0"
+  },
   "scripts": {
     "lint": "eslint",
     "lint:fix": "eslint --fix",
@@ -24,18 +27,18 @@
     "test:unit": "node --test test/unit/**/*.test.js",
     "muddy": "node src/cli.js test/ThresholdUI -n"
   },
-  "packageManager": "pnpm@10.28.0",
+  "packageManager": "pnpm@10.28.1",
   "dependencies": {
     "@gesslar/actioneer": "^2.1.0",
     "@gesslar/colours": "^0.8.0",
-    "@gesslar/toolkit": "^3.23.0",
+    "@gesslar/toolkit": "^3.24.0",
     "adm-zip": "^0.5.16",
     "archiver": "^7.0.1",
     "commander": "^14.0.2",
     "xmlbuilder2": "^4.0.3"
   },
   "devDependencies": {
-    "@gesslar/uglier": "^1.1.0",
+    "@gesslar/uglier": "^1.2.0",
     "console-ninja": "^1.0.0",
     "eslint": "^9.39.2",
     "typescript": "^5.9.3"
