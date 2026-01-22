@@ -15,8 +15,8 @@ importers:
         specifier: ^0.8.0
         version: 0.8.0
       '@gesslar/toolkit':
-        specifier: ^3.24.0
-        version: 3.24.0(eslint@9.39.2)
+        specifier: ^3.25.0
+        version: 3.25.0(eslint@9.39.2)
       adm-zip:
         specifier: ^0.5.16
         version: 0.5.16
@@ -100,9 +100,9 @@ packages:
     engines: {node: '>=22'}
     hasBin: true
 
-  '@gesslar/toolkit@3.24.0':
-    resolution: {integrity: sha512-8G4s7Sds5cdu023ueQqLVG/tg1mNNXRn0Eu3HuNbnMYVJg4DlIILvl0xuoLNAc1LdjAxJfgD0hdHM8DuctuKMA==}
-    engines: {node: '>=22'}
+  '@gesslar/toolkit@3.25.0':
+    resolution: {integrity: sha512-P9iTu1EOk4EkS8aE0JVCbzVmjPlDB8F2cg2oR53anqsCv2F4QvDlDOwmzlli7hta046sFHzfvo+FYx4vnHWwQw==}
+    engines: {node: '>=24.13.0'}
 
   '@gesslar/uglier@1.2.0':
     resolution: {integrity: sha512-YRiaQDXJRQ8tzMCMvejC2k23tGGFvmGshKK19v/0f0zavXGnPYDLx9ILm1FY9GtjyxHOh8diP8P7Xp0eWv8Dow==}
@@ -170,10 +170,6 @@ packages:
 
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
-
-  '@typescript-eslint/types@8.52.0':
-    resolution: {integrity: sha512-LWQV1V4q9V4cT4H5JCIx3481iIFxH1UkVk+ZkGGAV1ZGcjGI9IoFOfg3O6ywz8QqCDEp7Inlg6kovMofsNRaGg==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
   '@typescript-eslint/types@8.53.1':
     resolution: {integrity: sha512-jr/swrr2aRmUAUjW5/zQHbMaui//vQlsZcJKijZf3M26bnmLj8LyZUpj8/Rd6uzaek06OWsqdofN/Thenm5O8A==}
@@ -383,10 +379,6 @@ packages:
     resolution: {integrity: sha512-j6PAQ2uUr79PZhBjP5C5fhl8e39FmRnOjsD5lGnWrFU8i2G776tBK7+nP8KuQUTTyAZUwfQqXAgrVH5MbH9CYQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  espree@11.0.0:
-    resolution: {integrity: sha512-+gMeWRrIh/NsG+3NaLeWHuyeyk70p2tbvZIWBYcqQ4/7Xvars6GYTZNhF1sIeLcc6Wb11He5ffz3hsHyXFrw5A==}
-    engines: {node: ^20.19.0 || ^22.13.0 || >=24}
-
   espree@11.1.0:
     resolution: {integrity: sha512-WFWYhO1fV4iYkqOOvq8FbqIhr2pYfoDY0kCotMkDeNtGpiGGkZ1iov2u8ydjtgM8yF8rzK7oaTbw2NAzbAbehw==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
@@ -564,8 +556,8 @@ packages:
   lodash.merge@4.6.2:
     resolution: {integrity: sha512-0KpjqXRVvrYyCsX1swR/XTK0va6VQkQM6MNo7PqW77ByjAhoARA8EfrP1N4+KlKj8YS0ZUCtRT/YUuhyYDujIQ==}
 
-  lodash@4.17.21:
-    resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
+  lodash@4.17.23:
+    resolution: {integrity: sha512-LgVTMpQtIopCi79SJeDiP0TfWi5CNEc/L/aRdTh3yIvmZXTnheWpKjSZhnvMl8iXbC1tFg9gdHHDMLoV7CnG+w==}
 
   lru-cache@10.4.3:
     resolution: {integrity: sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ==}
@@ -864,13 +856,13 @@ snapshots:
 
   '@gesslar/actioneer@2.2.0(eslint@9.39.2)':
     dependencies:
-      '@gesslar/toolkit': 3.24.0(eslint@9.39.2)
+      '@gesslar/toolkit': 3.25.0(eslint@9.39.2)
     transitivePeerDependencies:
       - eslint
 
   '@gesslar/colours@0.8.0': {}
 
-  '@gesslar/toolkit@3.24.0(eslint@9.39.2)':
+  '@gesslar/toolkit@3.25.0(eslint@9.39.2)':
     dependencies:
       '@eslint/js': 9.39.2
       '@gesslar/colours': 0.8.0
@@ -886,7 +878,7 @@ snapshots:
   '@gesslar/uglier@1.2.0(eslint@9.39.2)':
     dependencies:
       '@gesslar/colours': 0.8.0
-      '@gesslar/toolkit': 3.24.0(eslint@9.39.2)
+      '@gesslar/toolkit': 3.25.0(eslint@9.39.2)
       '@skarab/detect-package-manager': 1.0.0
       '@stylistic/eslint-plugin': 5.7.0(eslint@9.39.2)
       eslint: 9.39.2
@@ -942,18 +934,16 @@ snapshots:
   '@stylistic/eslint-plugin@5.7.0(eslint@9.39.2)':
     dependencies:
       '@eslint-community/eslint-utils': 4.9.1(eslint@9.39.2)
-      '@typescript-eslint/types': 8.52.0
+      '@typescript-eslint/types': 8.53.1
       eslint: 9.39.2
       eslint-visitor-keys: 5.0.0
-      espree: 11.0.0
+      espree: 11.1.0
       estraverse: 5.3.0
       picomatch: 4.0.3
 
   '@types/estree@1.0.8': {}
 
   '@types/json-schema@7.0.15': {}
-
-  '@typescript-eslint/types@8.52.0': {}
 
   '@typescript-eslint/types@8.53.1': {}
 
@@ -999,7 +989,7 @@ snapshots:
       graceful-fs: 4.2.11
       is-stream: 2.0.1
       lazystream: 1.0.1
-      lodash: 4.17.21
+      lodash: 4.17.23
       normalize-path: 3.0.0
       readable-stream: 4.7.0
 
@@ -1180,12 +1170,6 @@ snapshots:
       acorn-jsx: 5.3.2(acorn@8.15.0)
       eslint-visitor-keys: 4.2.1
 
-  espree@11.0.0:
-    dependencies:
-      acorn: 8.15.0
-      acorn-jsx: 5.3.2(acorn@8.15.0)
-      eslint-visitor-keys: 5.0.0
-
   espree@11.1.0:
     dependencies:
       acorn: 8.15.0
@@ -1336,7 +1320,7 @@ snapshots:
 
   lodash.merge@4.6.2: {}
 
-  lodash@4.17.21: {}
+  lodash@4.17.23: {}
 
   lru-cache@10.4.3: {}
 

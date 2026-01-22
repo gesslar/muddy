@@ -26,15 +26,18 @@ void (async() => {
       .withName("MUDDY")
       .withStackTrace()
       .noDisplayName()
-      .withColours(
-        await Collection.allocateObject(glogColourNames, glogColourCodes)
-      )
-      .withSymbols(
-        await Collection.allocateObject(glogColourNames, [`•`, `•`, `•`, `•`])
-      )
+      .withColours(await Collection.allocateObject(
+        glogColourNames,
+        glogColourCodes
+      ))
+      .withSymbols(await Collection.allocateObject(
+        glogColourNames,
+        [`•`, `•`, `•`, `•`]
+      ))
 
     const program = new Command("muddy")
       .argument("[directory]", "The project directory containing an 'mfile' file and 'src/' directory.")
+      .option("-w, --watch", "Enable watch mode.", false)
       .option("-n, --nerd", "Nerd mode. Advanced error reporting.", false)
       .parse()
 
