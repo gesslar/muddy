@@ -33,7 +33,8 @@ const {IF, SPLIT} = ACTIVITY
  * Orchestrates the process of converting a source directory structure into
  * a Mudlet package (.mpackage) file by:
  * - Reading package metadata from mfile
- * - Discovering and processing module definitions (scripts, aliases, triggers, etc.)
+ * - Discovering and processing module definitions (scripts, aliases, triggers,
+ *   etc.)
  * - Building an XML document representation
  * - Packaging everything into a compressed .mpackage file
  */

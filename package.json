@@ -31,7 +31,7 @@
   "dependencies": {
     "@gesslar/actioneer": "^2.2.0",
     "@gesslar/colours": "^0.8.0",
-    "@gesslar/toolkit": "^3.24.0",
+    "@gesslar/toolkit": "^3.25.0",
     "adm-zip": "^0.5.16",
     "archiver": "^7.0.1",
     "commander": "^14.0.2",
