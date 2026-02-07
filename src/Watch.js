@@ -1,5 +1,6 @@
-import {Disposer, Notify, Time} from "@gesslar/toolkit"
+import {Disposer, Notify, Sass, Term, Time} from "@gesslar/toolkit"
 import {watch} from "node:fs/promises"
+import process from "node:process"
 
 import Muddy from "./Muddy.js"
 
@@ -50,6 +51,7 @@ export default class Watch {
 
     await new Muddy().run(this.#projectDirectory, this.#glog)
 
+    this.#initialiseInputHandler()
     this.#startWatch()
   }
 
@@ -94,5 +96,35 @@ export default class Watch {
         })()
       }
     } catch {}
+  }
+
+  /**
+   * Initialises the input handler for watch mode.
+   * Sets up raw mode input handling for interactive commands.
+   *
+   * @returns {void}
+   */
+  async #initialiseInputHandler() {
+    Term
+      .setCharMode()
+      .resume()
+      .utf8()
+      .hideCursor()
+
+    process.stdin.on("data", async key => {
+      try {
+        if(key === "q" || key === "\u0003" || key === "\u0004") {   // Ctrl+C
+          Term
+            .setLineMode()
+            .showCursor()
+            .pause()
+            .write("\nExiting.\n")
+
+          process.exit(0)
+        }
+      } catch(error) {
+        Sass.new("Processing input.", error).report(true)
+      }
+    })
   }
 }

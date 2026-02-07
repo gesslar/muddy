@@ -1,7 +1,9 @@
-import {Collection, Glog, Sass, DirectoryObject} from "@gesslar/toolkit"
+#! /usr/bin/env node
+
+import c from "@gesslar/colours"
+import {Collection, DirectoryObject, Glog, Sass, Term} from "@gesslar/toolkit"
 import {Command} from "commander"
 import process from "node:process"
-import c from "@gesslar/colours"
 
 import Muddy from "./Muddy.js"
 import Watch from "./Watch.js"
@@ -53,19 +55,34 @@ void (async() => {
       process.exit(1)
     }
 
-    glog.info(await cwd.hasDirectory("src"))
-    glog.info(await cwd.hasFile("mfile"))
-
     if(!(await cwd.hasDirectory("src") && await cwd.hasFile("mfile"))) {
       glog.error(`'${cwd.path}' is not a valid muddy project directory.`)
       process.exit(1)
     }
 
-    if(opts.watch)
+    if(opts.watch) {
+      setupAbortHandlers()
       await new Watch().run(cwd, glog)
-    else
+    } else {
       await new Muddy().run(cwd, glog)
+    }
   } catch(error) {
     Sass.from(error, "Starting muddy.").report(opts.nerd ?? false)
+  }
+
+  /**
+   * Creates handlers for various reasons that the application may crash.
+   */
+  function setupAbortHandlers() {
+    void["SIGINT", "SIGTERM", "SIGHUP"].forEach(signal => {
+      process.on(signal, () => {
+        Term
+          .setLineMode()
+          .showCursor()
+          .pause()
+
+        process.exit(0)
+      })
+    })
   }
 })()

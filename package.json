@@ -10,37 +10,55 @@
     "type": "git",
     "url": "git+https://github.com/gesslar/muddy.git"
   },
+  "bin": "./src/cli.js",
   "type": "module",
-  "keywords": [],
+  "files": [
+    "UNLICENSE.txt",
+    "src/**/*.js"
+  ],
+  "keywords": [
+    "mud",
+    "muddy",
+    "muddler",
+    "demuddler",
+    "mudlet",
+    "lua",
+    "para",
+    "bailar",
+    "la",
+    "bamba"
+  ],
   "license": "Unlicense",
   "main": "src/cli.js",
   "engines": {
     "node": ">=v24.13.0"
   },
+  "homepage": "https://github.com/gesslar/muddy",
   "scripts": {
     "lint": "eslint",
     "lint:fix": "eslint --fix",
     "types": "tsc -p tsconfig.types.json",
+    "build": "mkdir -pv ./dist && pnpm pack --pack-destination ./dist/",
     "update": "pnpm self-update && pnpx npm-check-updates -u && pnpm install",
     "test": "node --test",
     "test:watch": "node --test --watch",
     "test:unit": "node --test test/unit/**/*.test.js",
     "muddy": "node src/cli.js work/ThresholdUI -n"
   },
-  "packageManager": "pnpm@10.28.1",
+  "packageManager": "pnpm@10.29.1",
   "dependencies": {
     "@gesslar/actioneer": "^2.2.0",
     "@gesslar/colours": "^0.8.0",
-    "@gesslar/toolkit": "^3.28.0",
+    "@gesslar/toolkit": "^3.32.0",
     "adm-zip": "^0.5.16",
     "archiver": "^7.0.1",
-    "commander": "^14.0.2",
+    "commander": "^14.0.3",
     "xmlbuilder2": "^4.0.3"
   },
   "devDependencies": {
-    "@gesslar/uglier": "^1.2.0",
+    "@gesslar/uglier": "^1.3.0",
     "console-ninja": "^1.0.0",
-    "eslint": "^9.39.2",
+    "eslint": "^10.0.0",
     "typescript": "^5.9.3"
   }
 }
