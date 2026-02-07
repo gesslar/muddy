@@ -1,6 +1,6 @@
 import {Valid} from "@gesslar/toolkit"
 
-import Module from "./Module.js"
+import Module from "./MudletModule.js"
 
 export default class Action extends Module {
   #meta = new Map()
