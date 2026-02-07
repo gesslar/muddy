@@ -82,8 +82,17 @@ export default class Watch {
               this.#pending = false
               this.#busy = true
 
-              await Time.after(50)
-              await new Muddy().run(this.#projectDirectory, this.#glog)
+              while(true) {
+                await Time.after(50)
+                await new Muddy().run(this.#projectDirectory, this.#glog)
+
+                if(this.#pending) {
+                  this.#pending = false
+                  continue
+                }
+
+                break
+              }
 
               this.#busy = false
             }

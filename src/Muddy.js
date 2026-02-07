@@ -604,15 +604,13 @@ export default class Muddy {
   #recursiveResourcesCopy = async(res, work) => {
     const {files, directories} = await res.read()
 
-    // let's just use binary since it literally doesn't matter, and will be
-    // a byte-for-byte copy rather than caring about encoding-shmencoding.
+    await work.assureExists({recursive: true})
+
+    // Witchcraft. I will not be taking questions at this time.
     await Promised.settle(
-      // Witchcraft. I will not be taking questions at this time.
       [files, directories].flat().map(async e => {
         if(e.isFile) {
-          const data = await e.read()
-          const destFile = work.getFile(e.name)
-          await destFile.write(data)
+          await e.copy(work.getFile(e.name).path)
         } else if(e.isDirectory) {
           await this.#recursiveResourcesCopy(e, work.getDirectory(e.name))
         }
