@@ -19,6 +19,22 @@
     {
       "type": "node",
       "request": "launch",
+      "name": "Debug Muddy CLI (ThresholdUI) (watch)",
+      "program": "${workspaceFolder}/src/cli.js",
+      "args": [
+        "${workspaceFolder}/work/ThresholdUI",
+        "-n",
+        "-w"
+      ],
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "outputCapture": "std",
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "node",
+      "request": "launch",
       "name": "Debug Muddy CLI (work/test)",
       "program": "${workspaceFolder}/src/cli.js",
       "args": [

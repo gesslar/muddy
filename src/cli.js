@@ -4,6 +4,7 @@ import process from "node:process"
 import c from "@gesslar/colours"
 
 import Muddy from "./Muddy.js"
+import Watch from "./Watch.js"
 
 const aliasNames  = ["OK", "INFO", "WARN", "ERR"]
 const aliasCodes  = ["{<I}{F064}", "{<I}{F023}", "{<I}{F178}", "{<I}{F166}"]
@@ -52,12 +53,18 @@ void (async() => {
       process.exit(1)
     }
 
+    glog.info(await cwd.hasDirectory("src"))
+    glog.info(await cwd.hasFile("mfile"))
+
     if(!(await cwd.hasDirectory("src") && await cwd.hasFile("mfile"))) {
       glog.error(`'${cwd.path}' is not a valid muddy project directory.`)
       process.exit(1)
     }
 
-    await new Muddy().run(cwd, glog)
+    if(opts.watch)
+      await new Watch().run(cwd, glog)
+    else
+      await new Muddy().run(cwd, glog)
   } catch(error) {
     Sass.from(error, "Starting muddy.").report(opts.nerd ?? false)
   }
