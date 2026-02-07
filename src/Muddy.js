@@ -40,6 +40,7 @@ const {IF, SPLIT} = ACTIVITY
  */
 export default class Muddy {
   #projectDirectory
+  #srcDirectory
   #temp
 
   /**
@@ -55,6 +56,7 @@ export default class Muddy {
     Valid.type(log, "Glog")
 
     this.#projectDirectory = projectDirectory
+    this.#srcDirectory = projectDirectory.getDirectory("src")
 
     const temp = mkdtempSync(path.join(os.tmpdir(), "muddy-"))
     this.#temp = new DirectoryObject(temp)
@@ -66,7 +68,10 @@ export default class Muddy {
     const runner = new AR(builder)
 
     try {
-      return await runner.run(projectDirectory)
+      return await runner.run({
+        projectDirectory: this.#projectDirectory,
+        srcDirectory: this.#srcDirectory,
+      })
     } catch(error) {
       throw Sass.new("Executing Muddy.", error)
     }
@@ -81,7 +86,6 @@ export default class Muddy {
     try {
       builder
         .do("Read mfile", this.#readMfile)
-        .do("Discover src/ directory", this.#discoverSrcDirectory)
         .do("Process modules", SPLIT,
           this.#splitPackageDirs,
           this.#rejoinPackageDirs,
@@ -113,11 +117,12 @@ export default class Muddy {
    * @returns {Promise<MfileResult>}
    *   The context with loaded mfile data, or failure object if mfile doesn't exist
    */
-  #readMfile = async projectDirectory => {
+  #readMfile = async ctx  => {
+    const {projectDirectory} = ctx
     const mfileObject = projectDirectory.getFile("mfile")
 
     if(!await mfileObject.exists)
-      return {fail: true, message: `No such file ${mfileObject.url}`}
+      throw Sass.new(`No such file ${mfileObject.url}`)
 
     glog.info(c`Pulling metadata from {other}mfile{/}.`)
     const mfile = await mfileObject.loadData()
@@ -129,25 +134,7 @@ export default class Muddy {
          `object containing package name and file location at build end.`
       )
 
-    return {projectDirectory, mfile}
-  }
-
-  /**
-   * Discovers and validates the existence of the src/ directory.
-   *
-   * @private
-   * @param {BaseContext} ctx - The context object
-   * @returns {Promise<SrcContext>} Context with added srcDirectory property
-   * @throws {Error} If src/ directory doesn't exist
-   */
-  #discoverSrcDirectory = async ctx => {
-    const {projectDirectory} = ctx
-    const srcDirectory = projectDirectory.getDirectory("src")
-
-    if(!await srcDirectory.exists)
-      throw Sass.new(`Missing required directory 'src'`)
-
-    return Object.assign(ctx, {srcDirectory})
+    return Object.assign(ctx, {mfile})
   }
 
   /**
