@@ -33,6 +33,7 @@
   "engines": {
     "node": ">=v24.13.0"
   },
+  "icon": "mud-128.png",
   "homepage": "https://github.com/gesslar/muddy",
   "scripts": {
     "lint": "eslint",
