@@ -1,6 +1,12 @@
 # muddy
 
+<p align="center">
+  <img src="mud-128.png" alt="Description of image">
+</p>
+
 HEY!
+
+_HEY!_
 
 Do you love [muddler](https://github.com/demonnic/muddler)?? ME TOO!!! If you
 _don't_, then you it only stands to reason that you are entirely ignorant of
@@ -12,8 +18,8 @@ That said, I wish it weren't written in Java, cos I can't help. `:'(`
 
 But I know a few bars of [JavaScript](https://www.javascript.com/).
 
-I have tried to make this **muddy** work as closely to **muddler** as I could.
-Maybe it worked, maybe I failed miserably. idfk, it 'Works on My Computer™'.
+I have tried to make **muddy** work as closely to **muddler** as I could.
+Maybe it worked, maybe I failed miserably. idfk, it *Works on My Computer™*.
 
 My version is a clean-room implementation and I haven't even peeked at
 demonnic's, because, frankly, as implicated above, I am woefully inadequate
