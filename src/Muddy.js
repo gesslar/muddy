@@ -634,7 +634,7 @@ export default class Muddy {
     mpackage.addLocalFolder(workDirectory.path)
 
     const buildDirectory = projectDirectory.getDirectory("build")
-    await buildDirectory.exists()
+    await buildDirectory.assureExists()
 
     const mpackageFile = buildDirectory.getFile(`${mfile.package}.mpackage`)
 

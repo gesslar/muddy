@@ -64,8 +64,6 @@ Also, shout out to [@Edru2](https://github.com/Edru2) for
 
 Which is exactly how everybody likes their sex, yes? Yes. Okay.
 
-_did you know there's a javascript.com?? I just found that out. holy shit._
-
 ## License
 
 muddy itself is released into the public domain under the
@@ -80,7 +78,6 @@ licenses:
 | [@gesslar/colours](https://github.com/gesslar/colours) | Unlicense |
 | [@gesslar/toolkit](https://github.com/gesslar/toolkit) | Unlicense |
 | [adm-zip](https://github.com/cthackers/adm-zip) | MIT |
-| [archiver](https://github.com/archiverjs/node-archiver) | MIT |
 | [commander](https://github.com/tj/commander.js) | MIT |
 | [xmlbuilder2](https://github.com/oozcitak/xmlbuilder2) | MIT |
 
