@@ -41,6 +41,7 @@
     "types": "tsc -p tsconfig.types.json",
     "build": "mkdir -pv ./dist && pnpm pack --pack-destination ./dist/",
     "update": "pnpm self-update && pnpx npm-check-updates -u && pnpm install",
+    "submit": "pnpm publish --access public --//registry.npmjs.org/:_authToken=\"${NPM_ACCESS_TOKEN}\"",
     "test": "node --test",
     "test:watch": "node --test --watch",
     "test:unit": "node --test test/unit/**/*.test.js",
