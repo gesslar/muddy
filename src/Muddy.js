@@ -142,7 +142,7 @@ export default class Muddy {
 
       if(await readme.exists) {
         const content = await readme.read()
-        mfile.description = append(content, "\n")
+        mfile.description = Data.append(content, "\n")
 
         glog.info(`No description in 'mfile', will use content from existing README.md`)
       } else {
