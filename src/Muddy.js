@@ -128,11 +128,27 @@ export default class Muddy {
     const mfile = await mfileObject.loadData()
 
     glog.table(mfile)
+
     if(mfile.outputFile === true)
       glog.info(
         c`Will write {other}.output{/} file at root of project with json `+
          `object containing package name and file location at build end.`
       )
+
+    mfile.description = mfile.description ?? ""
+
+    if(!mfile.description) {
+      const readme = projectDirectory.getFile("README.md")
+
+      if(await readme.exists) {
+        const content = await readme.read()
+        mfile.description = append(content, "\n")
+
+        glog.info(`No description in 'mfile', will use content from existing README.md`)
+      } else {
+        glog.info(`No description in 'mfile' and no README.md`)
+      }
+    }
 
     return Object.assign(ctx, {mfile})
   }
@@ -632,7 +648,7 @@ export default class Muddy {
    * @returns {Promise<GeneratedContext>} The context object
    */
   #closeTheBarnDoor = async ctx => {
-    const {mfile, projectDirectory, workDirectory} = ctx
+    const {mfile, projectDirectory, workDirectory, xmlFile} = ctx
 
     const mpackage = new AdmZip()
 
@@ -651,6 +667,14 @@ export default class Muddy {
     const size = await mpackageFile.size()
 
     glog.info(c`{<B}${mpackageFile.path}{B>} written to disk (${size.toLocaleString()} bytes)`)
+
+    const destXmlFile = buildDirectory.getFile(xmlFile.name)
+    if(await destXmlFile.exists)
+      await destXmlFile.delete()
+
+    await xmlFile.copy(destXmlFile.path)
+    const xmlSize = await xmlFile.size()
+    glog.info(c`{<B}${destXmlFile.path}{B>} written to disk (${xmlSize.toLocaleString()} bytes)`)
 
     return Object.assign(ctx, {mpackageFile})
   }
