@@ -18,7 +18,7 @@ export default class MudletModule {
    * @param {string} [object.script] - Lua script content
    */
   constructor(object={}) {
-    const {name, isFolder, isActive, packageName="", script=""} = (object ?? {})
+    const {name, isFolder="no", isActive="yes", packageName="", script=""} = (object ?? {})
 
     Valid.type(name, "String", {allowEmpty: false})
     Valid.assert(isFolder === "yes" || isFolder === "no", "isFolder must be 'yes' or 'no'.")
