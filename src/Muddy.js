@@ -633,7 +633,11 @@ export default class Muddy {
     glog.info(`Adding contents of '${workDirectory.path}'`)
     mpackage.addLocalFolder(workDirectory.path)
 
-    const mpackageFile = projectDirectory.getFile(`${mfile.package}.mpackage`)
+    const buildDirectory = projectDirectory.getDirectory("build")
+    await buildDirectory.exists()
+
+    const mpackageFile = buildDirectory.getFile(`${mfile.package}.mpackage`)
+
     if(await mpackageFile.exists)
       await mpackageFile.delete()
 
