@@ -687,9 +687,6 @@ export default class Muddy {
       path: Data.prepend(FileSystem.relativeOrAbsolute(projectDirectory, mpackageFile), "/")
     })
 
-    // if(await outputFile.exists)
-    //   await outputFile.delete()
-
     await outputFile.write(Data.append(output, "\n"))
 
     const size = await outputFile.size()
