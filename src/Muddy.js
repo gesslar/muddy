@@ -512,6 +512,12 @@ export default class Muddy {
 
     xmlFragments.forEach(e => root.import(e))
     const output = root.end({prettyPrint: true})
+      .replaceAll(/(@PKGNAME@|__PKGNAME__)/g, mfile.package)
+      .replaceAll(/(@VERSION@|__VERSION__)/g, mfile.version)
+
+    glog.info(`Substituted all instances of (@PKGNAME@|__PKGNAME__) with '${mfile.package}'`)
+    glog.info(`Substituted all instances of (@VERSION@|__VERSION__) with '${mfile.version}'`)
+
     const outputFile = workDirectory.getFile(`${mfile.package}.xml`)
 
     glog.info(`XML created successfully, writing it to disk`)
