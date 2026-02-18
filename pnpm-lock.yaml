@@ -10,7 +10,7 @@ importers:
     dependencies:
       '@gesslar/actioneer':
         specifier: ^2.2.0
-        version: 2.2.0
+        version: 2.3.1
       '@gesslar/colours':
         specifier: ^0.8.0
         version: 0.8.0
@@ -80,8 +80,8 @@ packages:
     resolution: {integrity: sha512-bIZEUzOI1jkhviX2cp5vNyXQc6olzb2ohewQubuYlMXZ2Q/XjBO0x0XhGPvc9fjSIiUN0vw+0hq53BJ4eQSJKQ==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
 
-  '@gesslar/actioneer@2.2.0':
-    resolution: {integrity: sha512-efpJ7H9GYfcpxMolHgIcS6q735/2ZkrDC5zvIuSMb9Ct7ms7GypZfHeABFqBJtgQWTQzjaYNSD3ayvAy/FCwPw==}
+  '@gesslar/actioneer@2.3.1':
+    resolution: {integrity: sha512-KKWE1mrlLurwIVgmMKtO7T4cmCs0Maooog/Aw5hAo6aHCfbaGqTtjCIkIlEoZG+U3FzgbUx+TWhOCvESgHRDhA==}
     engines: {node: '>=22'}
 
   '@gesslar/colours@0.8.0':
@@ -540,7 +540,7 @@ snapshots:
       '@eslint/core': 1.1.0
       levn: 0.4.1
 
-  '@gesslar/actioneer@2.2.0':
+  '@gesslar/actioneer@2.3.1':
     dependencies:
       '@gesslar/toolkit': 3.34.0
 
