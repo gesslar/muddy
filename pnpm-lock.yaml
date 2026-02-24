@@ -29,13 +29,13 @@ importers:
     devDependencies:
       '@gesslar/uglier':
         specifier: ^1.4.0
-        version: 1.6.1(eslint@10.0.1)
+        version: 1.6.1(eslint@10.0.2)
       console-ninja:
         specifier: ^1.0.0
         version: 1.0.0
       eslint:
         specifier: ^10.0.0
-        version: 10.0.1
+        version: 10.0.2
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -251,8 +251,8 @@ packages:
     resolution: {integrity: sha512-tD40eHxA35h0PEIZNeIjkHoDR4YjjJp34biM0mDvplBe//mB+IHCqHDGV7pxF+7MklTvighcCPPZC7ynWyjdTA==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
 
-  eslint@10.0.1:
-    resolution: {integrity: sha512-20MV9SUdeN6Jd84xESsKhRly+/vxI+hwvpBMA93s+9dAcjdCuCojn4IqUGS3lvVaqjVYGYHSRMCpeFtF2rQYxQ==}
+  eslint@10.0.2:
+    resolution: {integrity: sha512-uYixubwmqJZH+KLVYIVKY1JQt7tysXhtj21WSvjcSmU5SVNzMus1bgLe+pAt816yQ8opKfheVVoPLqvVMGejYw==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
     hasBin: true
     peerDependencies:
@@ -513,9 +513,9 @@ snapshots:
 
   '@es-joy/resolve.exports@1.2.0': {}
 
-  '@eslint-community/eslint-utils@4.9.1(eslint@10.0.1)':
+  '@eslint-community/eslint-utils@4.9.1(eslint@10.0.2)':
     dependencies:
-      eslint: 10.0.1
+      eslint: 10.0.2
       eslint-visitor-keys: 3.4.3
 
   '@eslint-community/regexpp@4.12.2': {}
@@ -557,16 +557,16 @@ snapshots:
       supports-color: 10.2.2
       yaml: 2.8.2
 
-  '@gesslar/uglier@1.6.1(eslint@10.0.1)':
+  '@gesslar/uglier@1.6.1(eslint@10.0.2)':
     dependencies:
       '@gesslar/colours': 0.8.0
       '@gesslar/toolkit': 3.37.0
       '@skarab/detect-package-manager': 1.0.0
-      '@stylistic/eslint-plugin': 5.9.0(eslint@10.0.1)
-      eslint-plugin-jsdoc: 62.6.1(eslint@10.0.1)
+      '@stylistic/eslint-plugin': 5.9.0(eslint@10.0.2)
+      eslint-plugin-jsdoc: 62.6.1(eslint@10.0.2)
       globals: 17.3.0
     optionalDependencies:
-      eslint: 10.0.1
+      eslint: 10.0.2
     transitivePeerDependencies:
       - supports-color
 
@@ -602,11 +602,11 @@ snapshots:
 
   '@skarab/detect-package-manager@1.0.0': {}
 
-  '@stylistic/eslint-plugin@5.9.0(eslint@10.0.1)':
+  '@stylistic/eslint-plugin@5.9.0(eslint@10.0.2)':
     dependencies:
-      '@eslint-community/eslint-utils': 4.9.1(eslint@10.0.1)
+      '@eslint-community/eslint-utils': 4.9.1(eslint@10.0.2)
       '@typescript-eslint/types': 8.56.0
-      eslint: 10.0.1
+      eslint: 10.0.2
       eslint-visitor-keys: 4.2.1
       espree: 10.4.0
       estraverse: 5.3.0
@@ -672,7 +672,7 @@ snapshots:
 
   escape-string-regexp@4.0.0: {}
 
-  eslint-plugin-jsdoc@62.6.1(eslint@10.0.1):
+  eslint-plugin-jsdoc@62.6.1(eslint@10.0.2):
     dependencies:
       '@es-joy/jsdoccomment': 0.84.0
       '@es-joy/resolve.exports': 1.2.0
@@ -680,7 +680,7 @@ snapshots:
       comment-parser: 1.4.5
       debug: 4.4.3
       escape-string-regexp: 4.0.0
-      eslint: 10.0.1
+      eslint: 10.0.2
       espree: 11.1.1
       esquery: 1.7.0
       html-entities: 2.6.0
@@ -705,9 +705,9 @@ snapshots:
 
   eslint-visitor-keys@5.0.1: {}
 
-  eslint@10.0.1:
+  eslint@10.0.2:
     dependencies:
-      '@eslint-community/eslint-utils': 4.9.1(eslint@10.0.1)
+      '@eslint-community/eslint-utils': 4.9.1(eslint@10.0.2)
       '@eslint-community/regexpp': 4.12.2
       '@eslint/config-array': 0.23.2
       '@eslint/config-helpers': 0.5.2
