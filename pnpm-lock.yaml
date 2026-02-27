@@ -28,8 +28,8 @@ importers:
         version: 4.0.3
     devDependencies:
       '@gesslar/uglier':
-        specifier: ^1.4.0
-        version: 1.6.2(eslint@10.0.2)
+        specifier: ^2.0.0
+        version: 2.0.0(eslint@10.0.2)
       console-ninja:
         specifier: ^1.0.0
         version: 1.0.0
@@ -93,8 +93,8 @@ packages:
     resolution: {integrity: sha512-9gsR9V2vfY628AqvYp2sslSUrQqLOXMvS5XewtWuqWyEUyHJ8zupYYal10QXHTaIcvKz9mus/oX95LY1LvGNjg==}
     engines: {node: '>=24.13.0'}
 
-  '@gesslar/uglier@1.6.2':
-    resolution: {integrity: sha512-51c6pZQJ/4qfqfz8DHZErmUfN+YEHrUUxsryHPEyHhnw1vpol5qjZBMnj+GwPFKx8YXqCybQNtimTaCF7uHPnQ==}
+  '@gesslar/uglier@2.0.0':
+    resolution: {integrity: sha512-9NWCJ66KdHDJc/flsiXW1hyEA3DAXOja8R6foltGiyqWl30aT6aRFEW3z3n3b0u+CMk+UV8iTQKIM+tXkTYZQA==}
     engines: {node: '>=24.13.0'}
     hasBin: true
 
@@ -552,7 +552,7 @@ snapshots:
       supports-color: 10.2.2
       yaml: 2.8.2
 
-  '@gesslar/uglier@1.6.2(eslint@10.0.2)':
+  '@gesslar/uglier@2.0.0(eslint@10.0.2)':
     dependencies:
       '@gesslar/colours': 0.8.0
       '@gesslar/toolkit': 3.42.0
