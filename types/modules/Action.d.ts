@@ -1,4 +1,4 @@
-export default class Action {
+export default class Action extends Module {
     constructor(object?: {});
     get css(): any;
     get commandButtonUp(): any;
@@ -13,8 +13,7 @@ export default class Action {
     get sizeY(): any;
     get buttonColumn(): any;
     get buttonRotation(): any;
-    toJSON(): any;
-    toXMLFragment(): any;
     #private;
 }
+import Module from "./MudletModule.js";
 //# sourceMappingURL=Action.d.ts.map

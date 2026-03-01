@@ -5,7 +5,7 @@
     "name": "gesslar",
     "url": "https://gesslar.dev"
   },
-  "version": "0.4.2",
+  "version": "0.4.3",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/gesslar/muddy.git"
@@ -29,7 +29,6 @@
     "bamba"
   ],
   "license": "Unlicense",
-  "main": "src/cli.js",
   "engines": {
     "node": ">=v24.13.0"
   },
@@ -39,23 +38,23 @@
     "lint": "eslint",
     "lint:fix": "eslint --fix",
     "types": "tsc -p tsconfig.types.json",
-    "build": "mkdir -pv ./dist && pnpm pack --pack-destination ./dist/",
-    "update": "pnpm self-update && pnpx npm-check-updates -u && pnpm install",
-    "submit": "pnpm publish --access public --//registry.npmjs.org/:_authToken=\"${NPM_ACCESS_TOKEN}\"",
+    "build": "mkdir -pv ./dist && npm pack --pack-destination ./dist/",
+    "update": "npx npm-check-updates -u && npm install",
+    "submit": "npm publish --access public --//registry.npmjs.org/:_authToken=\"${NPM_ACCESS_TOKEN}\"",
     "test": "node --test",
     "test:watch": "node --test --watch",
     "test:unit": "node --test test/unit/**/*.test.js",
     "muddy": "node src/cli.js work/ThresholdUI -n",
     "pr": "gt submit -p --ai",
-    "patch": "pnpm version patch",
-    "minor": "pnpm version minor",
-    "major": "pnpm version major"
+    "patch": "npm version patch",
+    "minor": "npm version minor",
+    "major": "npm version major"
   },
-  "packageManager": "pnpm@10.29.1",
+  "packageManager": "npm@11.11.0",
   "dependencies": {
-    "@gesslar/actioneer": "^2.2.0",
+    "@gesslar/actioneer": "^2.4.0",
     "@gesslar/colours": "^0.8.0",
-    "@gesslar/toolkit": "^3.33.1",
+    "@gesslar/toolkit": "^3.42.0",
     "adm-zip": "^0.5.16",
     "commander": "^14.0.3",
     "xmlbuilder2": "^4.0.3"
@@ -63,7 +62,7 @@
   "devDependencies": {
     "@gesslar/uglier": "^2.0.0",
     "console-ninja": "^1.0.0",
-    "eslint": "^10.0.0",
+    "eslint": "^10.0.2",
     "typescript": "^5.9.3"
   }
 }

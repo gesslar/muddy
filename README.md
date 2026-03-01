@@ -37,8 +37,8 @@ The only difference between invoking **muddy** over **muddler** is the cli.
 ## Immediate Invocation
 
 ```shell
-# pnpm
-pnpx @gesslar/muddy --help
+# npm
+npx @gesslar/muddy --help
 
 # npm
 npx @gesslar/muddy --help
@@ -47,10 +47,10 @@ npx @gesslar/muddy --help
 ## Install as a dependency, if you want, you don't have to
 
 ```shell
-# pnpm
-pnpm add -d @gesslar/muddy
+# npm
+npm add -d @gesslar/muddy
 
-#npm
+# npm
 npm i -d @gesslar/muddy
 ```
 
@@ -66,7 +66,7 @@ Which is exactly how everybody likes their sex, yes? Yes. Okay.
 
 ## License
 
-muddy itself is released into the public domain under the
+muddy is released into the public domain under the
 [Unlicense](UNLICENSE.txt).
 
 This package includes or depends on third-party components under their own
