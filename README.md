@@ -50,7 +50,7 @@ npx @gesslar/muddy --help
 # npm
 npm add -d @gesslar/muddy
 
-#npm
+# npm
 npm i -d @gesslar/muddy
 ```
 
