@@ -19,7 +19,7 @@ That said, I wish it weren't written in Java, cos I can't help. `:'(`
 But I know a few bars of [JavaScript](https://www.javascript.com/).
 
 I have tried to make **muddy** work as closely to **muddler** as I could.
-Maybe it worked, maybe I failed miserably. idfk, it *Works on My Computer™*.
+Maybe it worked, maybe I failed miserably. idfk, it _Works on My Computer™_.
 
 My version is a clean-room implementation and I haven't even peeked at
 demonnic's, because, frankly, as implicated above, I am woefully inadequate
@@ -66,17 +66,16 @@ Which is exactly how everybody likes their sex, yes? Yes. Okay.
 
 ## License
 
-muddy is released into the public domain under the
-[Unlicense](UNLICENSE.txt).
+`@gesslar/muddy` is released into the public domain under the [0BSD](LICENSE.txt).
 
 This package includes or depends on third-party components under their own
 licenses:
 
 | Dependency | License |
 | --- | --- |
-| [@gesslar/actioneer](https://github.com/gesslar/actioneer) | Unlicense |
-| [@gesslar/colours](https://github.com/gesslar/colours) | Unlicense |
-| [@gesslar/toolkit](https://github.com/gesslar/toolkit) | Unlicense |
+| [@gesslar/actioneer](https://github.com/gesslar/actioneer) | 0BSD |
+| [@gesslar/colours](https://github.com/gesslar/colours) | 0BSD |
+| [@gesslar/toolkit](https://github.com/gesslar/toolkit) | 0BSD |
 | [adm-zip](https://github.com/cthackers/adm-zip) | MIT |
 | [commander](https://github.com/tj/commander.js) | MIT |
 | [xmlbuilder2](https://github.com/oozcitak/xmlbuilder2) | MIT |
