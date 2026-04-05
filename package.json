@@ -13,7 +13,7 @@
   "bin": "./src/cli.js",
   "type": "module",
   "files": [
-    "UNLICENSE.txt",
+    "LICENSE.txt",
     "src/**/*.js"
   ],
   "keywords": [
@@ -28,9 +28,9 @@
     "la",
     "bamba"
   ],
-  "license": "Unlicense",
+  "license": "0BSD",
   "engines": {
-    "node": ">=v24.13.0"
+    "node": ">=v24.11.0"
   },
   "icon": "mud-128.png",
   "homepage": "https://github.com/gesslar/muddy",
@@ -52,9 +52,9 @@
   },
   "packageManager": "npm@11.12.1",
   "dependencies": {
-    "@gesslar/actioneer": "^2.4.0",
-    "@gesslar/colours": "^0.8.0",
-    "@gesslar/toolkit": "^4.4.0",
+    "@gesslar/actioneer": "^3.0.0",
+    "@gesslar/colours": "^1.0.0",
+    "@gesslar/toolkit": "^5.0.0",
     "adm-zip": "^0.5.17",
     "commander": "^14.0.3",
     "xmlbuilder2": "^4.0.3"
