@@ -50,19 +50,19 @@
     "minor": "npm version minor",
     "major": "npm version major"
   },
-  "packageManager": "npm@11.11.0",
+  "packageManager": "npm@11.12.1",
   "dependencies": {
     "@gesslar/actioneer": "^2.4.0",
     "@gesslar/colours": "^0.8.0",
-    "@gesslar/toolkit": "^4.0.0",
-    "adm-zip": "^0.5.16",
+    "@gesslar/toolkit": "^4.4.0",
+    "adm-zip": "^0.5.17",
     "commander": "^14.0.3",
     "xmlbuilder2": "^4.0.3"
   },
   "devDependencies": {
-    "@gesslar/uglier": "^2.0.0",
+    "@gesslar/uglier": "^2.4.0",
     "console-ninja": "^1.0.0",
-    "eslint": "^10.0.2",
+    "eslint": "^10.2.0",
     "typescript": "^6.0.2"
   }
 }
