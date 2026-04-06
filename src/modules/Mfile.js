@@ -2,7 +2,7 @@ const Mfile = new Object()
 
 Mfile.FIELDS = Object.freeze([
   "package", "title", "description", "version", "author", "icon",
-  "dependencies", "outputFile",
+  "dependencies", "outputFile", "ignore",
 ])
 
 Mfile.MFILE_TO_CONFIG = Object.freeze(new Map([
