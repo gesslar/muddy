@@ -88,7 +88,9 @@ export default class Watch {
 
               while(true) {
                 await Time.after(50)
-                await new Muddy().run(this.#projectDirectory, this.#glog, this.#mfileObject)
+                await new Muddy().run(
+                  this.#projectDirectory, this.#glog, this.#mfileObject
+                )
 
                 if(this.#pending) {
                   this.#pending = false
