@@ -19,6 +19,8 @@ export default class Watch {
   #srcDirectory
   /** @type {FileObject} */
   #mfile
+  /** @type {FileObject} */
+  #mfileObject
   /** @type {Glog} */
   #glog
   /** @type {NotifyClass} */
@@ -40,16 +42,18 @@ export default class Watch {
    *
    * @param {DirectoryObject} projectDirectory - The directory of project.
    * @param {Glog} log - The Glog instance object.
+   * @param {FileObject} [mfileObject] - Optional path to an alternate mfile.
    */
-  async run(projectDirectory, log) {
+  async run(projectDirectory, log, mfileObject) {
     this.#projectDirectory = projectDirectory
     this.#srcDirectory = projectDirectory.getDirectory("src")
-    this.#mfile = this.#projectDirectory.getFile("mfile")
+    this.#mfile = mfileObject ?? this.#projectDirectory.getFile("mfile")
+    this.#mfileObject = mfileObject ?? null
     this.#glog = log
     this.#notify = Notify
     this.#disposer = Disposer
 
-    await new Muddy().run(this.#projectDirectory, this.#glog)
+    await new Muddy().run(this.#projectDirectory, this.#glog, this.#mfileObject)
 
     this.#initialiseInputHandler()
     this.#startWatch()
@@ -84,7 +88,7 @@ export default class Watch {
 
               while(true) {
                 await Time.after(50)
-                await new Muddy().run(this.#projectDirectory, this.#glog)
+                await new Muddy().run(this.#projectDirectory, this.#glog, this.#mfileObject)
 
                 if(this.#pending) {
                   this.#pending = false

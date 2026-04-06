@@ -1,7 +1,7 @@
 #! /usr/bin/env node
 
 import c from "@gesslar/colours"
-import {Collection, DirectoryObject, Glog, Sass, Term} from "@gesslar/toolkit"
+import {Collection, DirectoryObject, FileObject, Glog, Sass, Term} from "@gesslar/toolkit"
 import {Command} from "commander"
 import process from "node:process"
 
@@ -42,6 +42,7 @@ void (async() => {
       .argument("[directory]", "The project directory containing an 'mfile' file and 'src/' directory.")
       .option("-w, --watch", "Enable watch mode.", false)
       .option("-n, --nerd", "Nerd mode. Advanced error reporting.", false)
+      .option("-m, --mfile <path>", "Path to an alternate mfile.")
       .parse()
 
     Object.assign(opts, program.opts())
@@ -55,16 +56,32 @@ void (async() => {
       process.exit(1)
     }
 
-    if(!(await cwd.hasDirectory("src") && await cwd.hasFile("mfile"))) {
-      glog.error(`'${cwd.path}' is not a valid muddy project directory.`)
-      process.exit(1)
+    let mfileObject = null
+
+    if(opts.mfile) {
+      mfileObject = new FileObject(opts.mfile)
+
+      if(!await mfileObject.exists) {
+        glog.error(`No such mfile '${opts.mfile}'.`)
+        process.exit(1)
+      }
+
+      if(!await cwd.hasDirectory("src")) {
+        glog.error(`'${cwd.path}' is not a valid muddy project directory.`)
+        process.exit(1)
+      }
+    } else {
+      if(!(await cwd.hasDirectory("src") && await cwd.hasFile("mfile"))) {
+        glog.error(`'${cwd.path}' is not a valid muddy project directory.`)
+        process.exit(1)
+      }
     }
 
     if(opts.watch) {
       setupAbortHandlers()
-      await new Watch().run(cwd, glog)
+      await new Watch().run(cwd, glog, mfileObject)
     } else {
-      await new Muddy().run(cwd, glog)
+      await new Muddy().run(cwd, glog, mfileObject)
     }
   } catch(error) {
     Sass.from(error, "Starting muddy.").report(opts.nerd ?? false)

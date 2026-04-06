@@ -41,6 +41,7 @@ const {IF, SPLIT} = ACTIVITY
 export default class Muddy {
   #projectDirectory
   #srcDirectory
+  #mfileObject
   #temp
 
   /**
@@ -48,15 +49,17 @@ export default class Muddy {
    *
    * @param {DirectoryObject} projectDirectory - The root directory of the project to build
    * @param {Glog} log - Logger instance for output
+   * @param {FileObject} [mfileObject] - Optional path to an alternate mfile
    * @returns {Promise<unknown>} The result of the build process
    * @throws {Error} If execution fails at any step
    */
-  async run(projectDirectory, log) {
+  async run(projectDirectory, log, mfileObject) {
     Valid.type(projectDirectory, "DirectoryObject")
     Valid.type(log, "Glog")
 
     this.#projectDirectory = projectDirectory
     this.#srcDirectory = projectDirectory.getDirectory("src")
+    this.#mfileObject = mfileObject ?? null
 
     const temp = mkdtempSync(path.join(os.tmpdir(), "muddy-"))
     this.#temp = new DirectoryObject(temp)
@@ -119,7 +122,7 @@ export default class Muddy {
    */
   #readMfile = async ctx  => {
     const {projectDirectory} = ctx
-    const mfileObject = projectDirectory.getFile("mfile")
+    const mfileObject = this.#mfileObject ?? projectDirectory.getFile("mfile")
 
     if(!await mfileObject.exists)
       throw Sass.new(`No such file ${mfileObject.url}`)
