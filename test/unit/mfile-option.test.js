@@ -1,8 +1,10 @@
-import {describe, it} from "node:test"
+import {after, describe, it} from "node:test"
 import assert from "node:assert/strict"
 import {execFile} from "node:child_process"
+import {rm} from "node:fs/promises"
 import {promisify} from "node:util"
 import path from "node:path"
+import os from "node:os"
 import {fileURLToPath} from "node:url"
 
 const exec = promisify(execFile)
@@ -12,6 +14,7 @@ const FIXTURES = path.resolve(__dirname, "../fixtures")
 const PROJECT = path.join(FIXTURES, "mfile-test")
 const ALT_MFILE = path.join(PROJECT, "alt-mfile")
 const EXTERNAL_MFILE = path.join(FIXTURES, "alt-mfile-external")
+const BUILD_DIR = path.join(PROJECT, "build")
 
 /**
  * Runs the CLI with given args and returns {stdout, stderr, code}.
@@ -29,6 +32,10 @@ async function run(args) {
 }
 
 describe("--mfile / -m option", () => {
+  after(async () => {
+    await rm(BUILD_DIR, {recursive: true, force: true})
+  })
+
   it("should appear in --help output", async () => {
     const {stdout} = await run(["--help"])
     assert.match(stdout, /-m, --mfile <path>/)
@@ -52,8 +59,14 @@ describe("--mfile / -m option", () => {
     assert.match(stdout, /ExternalMfile/, "should use package name from external mfile")
   })
 
+  it("should resolve a relative mfile path against the project directory", async () => {
+    const {stdout, code} = await run([PROJECT, "-m", "alt-mfile"])
+    assert.equal(code, 0, "should exit cleanly")
+    assert.match(stdout, /AltMfileTest/, "should use package name from relative alt mfile")
+  })
+
   it("should fail when -m points to a nonexistent file", async () => {
-    const {code} = await run([PROJECT, "-m", "/tmp/does-not-exist-mfile"])
+    const {code} = await run([PROJECT, "-m", path.join(os.tmpdir(), "does-not-exist-mfile")])
     assert.notEqual(code, 0, "should exit with error")
   })
 

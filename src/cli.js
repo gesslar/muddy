@@ -59,7 +59,7 @@ void (async() => {
     let mfileObject = null
 
     if(opts.mfile) {
-      mfileObject = new FileObject(opts.mfile)
+      mfileObject = new FileObject(opts.mfile, cwd)
 
       if(!await mfileObject.exists) {
         glog.error(`No such mfile '${opts.mfile}'.`)
@@ -85,6 +85,7 @@ void (async() => {
     }
   } catch(error) {
     Sass.from(error, "Starting muddy.").report(opts.nerd ?? false)
+    process.exitCode = 1
   }
 
   /**
