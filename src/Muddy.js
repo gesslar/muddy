@@ -135,6 +135,7 @@ export default class Muddy {
          `object containing package name and file location at build end.`
       )
 
+    mfile.ignore = mfile.ignore ?? []
     mfile.description = mfile.description ?? ""
 
     if(!mfile.description) {
@@ -161,9 +162,9 @@ export default class Muddy {
    * @returns {Promise<Array<ModuleTypeContext>>} Array of contexts for each module type
    */
   #splitPackageDirs = async ctx => {
-    const {srcDirectory} = ctx
+    const {srcDirectory, mfile} = ctx
 
-    return Type.PLURAL.map(e => ({kind: e, srcDirectory}))
+    return Type.PLURAL.map(e => ({kind: e, srcDirectory, ignore: mfile.ignore}))
   }
 
   /**
@@ -192,13 +193,15 @@ export default class Muddy {
    * @returns {Promise<JsonFilesContext>} Context with jsonFiles array
    */
   #scanForPackageJsonFiles = async ctx => {
-    const {kind, srcDirectory} = ctx
+    const {kind, srcDirectory, ignore} = ctx
 
     glog.info(c`Scanning for {${kind}}${kind}{/}`)
 
     const pattern = `**/${kind}.json`
     const found = await srcDirectory.glob(pattern)
-    const jsonFiles = found.files
+    const jsonFiles = found.files.filter(
+      f => !this.#isIgnored(f.relativeTo(srcDirectory), ignore)
+    )
 
     jsonFiles.forEach(e =>
       glog
@@ -610,32 +613,34 @@ export default class Muddy {
     // Now we just literally copy everything from resources into the main work
     // directory. Mudlet will do the same thing, allowing the entire structure
     // to be replicated in a predicktable fashion.
-    await this.#recursiveResourcesCopy(resourcesDirectory, workDirectory)
+    await this.#recursiveResourcesCopy(
+      resourcesDirectory, workDirectory, mfile.ignore
+    )
 
     return ctx
   }
 
   /**
-   * Recursively copies files and directories from resources to work directory.
+   * Copies files from resources to work directory, respecting ignore patterns.
    *
    * @private
    * @param {DirectoryObject} res - The source resources directory
    * @param {DirectoryObject} work - The destination work directory
+   * @param {Array<string>} ignore - Glob patterns to ignore
    * @returns {Promise<void>}
    */
-  #recursiveResourcesCopy = async(res, work) => {
-    const {files, directories} = await res.read()
+  #recursiveResourcesCopy = async(res, work, ignore) => {
+    const found = await res.glob("**/*")
+    const files = found.files.filter(
+      f => !this.#isIgnored(f.relativeTo(res), ignore)
+    )
 
-    await work.assureExists({recursive: true})
-
-    // Witchcraft. I will not be taking questions at this time.
     await Promised.settle(
-      [files, directories].flat().map(async e => {
-        if(e.isFile) {
-          await e.copy(work.getFile(e.name).path)
-        } else if(e.isDirectory) {
-          await this.#recursiveResourcesCopy(e, work.getDirectory(e.name))
-        }
+      files.map(async file => {
+        const relative = file.relativeTo(res)
+        const dest = work.getFile(relative)
+        await dest.parent.assureExists({recursive: true})
+        await file.copy(dest.path)
       })
     )
   }
@@ -766,4 +771,18 @@ export default class Muddy {
    * @returns {string} ISO timestamp in format YYYY-MM-DDTHH:mm:ss+0000
    */
   #iso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "+0000")
+
+  /**
+   * Checks whether a relative path matches any of the ignore patterns.
+   *
+   * @private
+   * @param {string} relativePath - The relative file path to check
+   * @param {Array<string>} patterns - Glob patterns to match against
+   * @returns {boolean} True if the path should be ignored
+   */
+  #isIgnored = (relativePath, patterns) =>
+    patterns.length > 0
+    && patterns.some(
+      pat => path.matchesGlob(relativePath, pat)
+    )
 }
