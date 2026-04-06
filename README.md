@@ -64,6 +64,34 @@ Also, shout out to [@Edru2](https://github.com/Edru2) for
 
 Which is exactly how everybody likes their sex, yes? Yes. Okay.
 
+## Features unique to muddy
+
+### Ignore patterns
+
+muddy supports an `ignore` field in your `mfile` that lets you exclude files
+from both module collection and resource injection. This is not available in
+muddler.
+
+Add an `ignore` array to your `mfile` with glob patterns:
+
+```json
+{
+  "package": "MyPackage",
+  "version": "1.0.0",
+  "ignore": ["**/drafts/**", "**/wip/**", "**/experimental_*"]
+}
+```
+
+Patterns are matched against relative paths within `src/`. They apply to:
+
+- **Module collection** — any `scripts.json`, `aliases.json`, etc. matching an
+  ignore pattern will be skipped entirely, along with their associated Lua files.
+- **Resource injection** — any files under `src/resources/` matching an ignore
+  pattern will not be copied into the `.mpackage`.
+
+Standard glob syntax is supported (e.g. `*`, `**`, `?`). If `ignore` is omitted
+or empty, all files are included as usual.
+
 ## License
 
 `@gesslar/muddy` is released into the public domain under the [0BSD](LICENSE.txt).
