@@ -5,6 +5,7 @@ import {Collection, DirectoryObject, FileObject, Glog, Sass, Term} from "@gessla
 import {Command} from "commander"
 import process from "node:process"
 
+import Generate from "./Generate.js"
 import Muddy from "./Muddy.js"
 import Watch from "./Watch.js"
 
@@ -40,6 +41,7 @@ void (async() => {
 
     const program = new Command("muddy")
       .argument("[directory]", "The project directory containing an 'mfile' file and 'src/' directory.")
+      .option("-g, --generate", "Generate a new muddy project skeleton.", false)
       .option("-w, --watch", "Enable watch mode.", false)
       .option("-n, --nerd", "Nerd mode. Advanced error reporting.", false)
       .option("-m, --mfile <path>", "Path to an alternate mfile.")
@@ -54,6 +56,12 @@ void (async() => {
     if(!await cwd.exists) {
       glog.error(`No such directory '${dirArg}'.`)
       process.exit(1)
+    }
+
+    if(opts.generate) {
+      await new Generate().run(cwd, glog)
+
+      return
     }
 
     let mfileObject = null

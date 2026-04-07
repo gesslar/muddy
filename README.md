@@ -56,9 +56,6 @@ npm i -d @gesslar/muddy
 
 ## Post Hocktuah
 
-I just realised that I didn't implement creating or scaffolding a new project
-like **muddler** does. Maybe in the next version.
-
 Also, shout out to [@Edru2](https://github.com/Edru2) for
 [DeMuddler](https://github.com/Edru2/DeMuddler) which is just sex on a stick.
 
