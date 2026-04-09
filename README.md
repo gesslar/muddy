@@ -63,6 +63,26 @@ Which is exactly how everybody likes their sex, yes? Yes. Okay.
 
 ## Features unique to muddy
 
+### Add modules
+
+muddy can scaffold new modules directly from the command line using `--add`.
+This creates the type directory (if needed), adds an entry to the `{type}.json`
+with all available fields from the schema pre-filled, and creates an empty
+`.lua` file — ready for you to fill in.
+
+```shell
+# Add a named script
+muddy . --add script --name "My Script"
+
+# Add an alias with auto-generated temp name (new_alias_1, new_alias_2, ...)
+muddy . --add alias
+
+# Short form
+muddy . -a trigger --name "Health Warning"
+```
+
+Valid types: `alias`, `key`, `script`, `timer`, `trigger`.
+
 ### Ignore patterns
 
 muddy supports an `ignore` field in your `mfile` that lets you exclude files
