@@ -11,6 +11,7 @@ Mfile.MFILE_TO_CONFIG = Object.freeze(new Map([
   ["icon", "icon"],
   ["description", "description"],
   ["version", "version"],
+  ["title", "title"],
 ]))
 
 export default Mfile
