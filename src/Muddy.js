@@ -105,6 +105,7 @@ export default class Muddy {
         .do("Generate config.lua", this.#generateConfigLua)
         .do("Process resources", this.#processResources)
         .do("Zzzzzzzzzzip", this.#closeTheBarnDoor)
+        .do("Record built stamp", this.#recordBuildStamp)
         .do("Write .output", IF, ctx => ctx.mfile.outputFile, this.#writeOutputFile)
         .done(this.#cleanUp)
     } catch(error) {
@@ -566,11 +567,13 @@ export default class Muddy {
       out.push(`${v} = [[${mfile[k]}]]`)
 
     // This isn't sourced anywhere, so we just make it up.
-    out.push(`created = [[${this.#iso()}]]`)
+    const now = this.#iso()
+    out.push(`created = [[${now}]]`)
     const configFile = workDirectory.getFile("config.lua")
     await configFile.write(out.join("\n"))
 
     ctx.configFile = configFile
+    ctx.built = now
 
     return ctx
   }
@@ -685,6 +688,20 @@ export default class Muddy {
     glog.info(c`{<B}${destXmlFile.path}{B>} written to disk (${xmlSize.toLocaleString()} bytes)`)
 
     return Object.assign(ctx, {mpackageFile})
+  }
+
+  #recordBuildStamp = async ctx => {
+    const {projectDirectory, built} = ctx
+
+    const buildDirectory = projectDirectory.getDirectory("build")
+    const buildStampFile = buildDirectory.getFile(".built")
+
+    if(await buildStampFile.exists)
+      await buildStampFile.delete()
+
+    await buildStampFile.write(`${built}\n`)
+
+    return ctx
   }
 
   #writeOutputFile = async ctx => {
