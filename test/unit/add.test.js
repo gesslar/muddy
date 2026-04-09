@@ -197,6 +197,31 @@ describe("add command", () => {
     })
   })
 
+  describe("lua filename collision", () => {
+    let projectDir
+
+    before(async() => {
+      projectDir = await scaffold(
+        path.join(tmpDir, "luacollide")
+      )
+      await add(projectDir, "script", "My Script")
+    })
+
+    it("should reject a name that sanitizes to an existing lua file", async() => {
+      const {code} = await add(
+        projectDir, "script", "My_Script"
+      )
+      assert.notEqual(code, 0, "should exit with error")
+    })
+
+    it("should not add the colliding entry to the json", async() => {
+      const defs = await readJSON(path.join(
+        projectDir, "src", "scripts", "scripts.json"
+      ))
+      assert.equal(defs.length, 1, "should still have only one entry")
+    })
+  })
+
   describe("unknown type", () => {
     it("should reject an invalid type", async() => {
       const projectDir = await scaffold(

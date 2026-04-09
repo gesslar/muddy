@@ -44,8 +44,22 @@ export default class Add {
     const resolvedName = name || this.#tempName(type, entries)
     const safeName = resolvedName.replaceAll(/[^\w]/g, "_").replace(/^\d+/, "")
 
+    if(!safeName) {
+      glog.error(`Module name '${resolvedName}' produces an empty filename after sanitization.`)
+      process.exit(1)
+    }
+
     if(entries.some(e => e.name === resolvedName)) {
       glog.error(`A ${type} named '${resolvedName}' already exists in ${jsonFile.relativeTo(cwd)}.`)
+      process.exit(1)
+    }
+
+    const luaFile = typeDir.getFile(`${safeName}.lua`)
+    if(await luaFile.exists) {
+      glog.error(
+        `A .lua file '${luaFile.relativeTo(cwd)}' already exists`
+        + ` (name '${resolvedName}' sanitizes to '${safeName}.lua').`
+      )
       process.exit(1)
     }
 
@@ -55,11 +69,8 @@ export default class Add {
     await jsonFile.write(JSON.stringify(entries, null, 2) + "\n")
     glog.success(c`Added {${plural}}${resolvedName}{/} to ${jsonFile.relativeTo(cwd)}`)
 
-    const luaFile = typeDir.getFile(`${safeName}.lua`)
-    if(!await luaFile.exists) {
-      await luaFile.write("")
-      glog.success(c`Created {${plural}}${luaFile.relativeTo(cwd)}{/}`)
-    }
+    await luaFile.write("")
+    glog.success(c`Created {${plural}}${luaFile.relativeTo(cwd)}{/}`)
   }
 
   /**
