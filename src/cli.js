@@ -5,8 +5,10 @@ import {Collection, DirectoryObject, FileObject, Glog, Sass, Term} from "@gessla
 import {Command} from "commander"
 import process from "node:process"
 
+import Add from "./Add.js"
 import Generate from "./Generate.js"
 import Muddy from "./Muddy.js"
+import Type from "./Type.js"
 import Watch from "./Watch.js"
 
 const aliasNames  = ["OK", "INFO", "WARN", "ERR"]
@@ -45,6 +47,11 @@ void (async() => {
       .option("-w, --watch", "Enable watch mode.", false)
       .option("-n, --nerd", "Nerd mode. Advanced error reporting.", false)
       .option("-m, --mfile <path>", "Path to an alternate mfile.")
+      .option(
+        `-a, --add <type>`,
+        `Add a new module of the given type (${Type.SINGLE.join(", ")}).`
+      )
+      .option("--name <name>", "Name for the new module (used with --add).")
       .parse()
 
     Object.assign(opts, program.opts())
@@ -56,6 +63,12 @@ void (async() => {
     if(!await cwd.exists) {
       glog.error(`No such directory '${dirArg}'.`)
       process.exit(1)
+    }
+
+    if(opts.add) {
+      await new Add().run(cwd, glog, opts.add, opts.name)
+
+      return
     }
 
     if(opts.generate) {
