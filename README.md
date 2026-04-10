@@ -111,7 +111,7 @@ or empty, all files are included as usual.
 
 ## License
 
-`@gesslar/muddy` is released into the public domain under the [0BSD](LICENSE.txt).
+`@gesslar/muddy` is released under the [0BSD](LICENSE.txt).
 
 This package includes or depends on third-party components under their own
 licenses:
