@@ -620,7 +620,7 @@ export default class Muddy {
     // directory. Mudlet will do the same thing, allowing the entire structure
     // to be replicated in a predicktable fashion.
     await this.#recursiveResourcesCopy(
-      resourcesDirectory, workDirectory, mfile.ignore
+      srcDirectory, resourcesDirectory, workDirectory, mfile.ignore
     )
 
     return ctx
@@ -629,16 +629,22 @@ export default class Muddy {
   /**
    * Copies files from resources to work directory, respecting ignore patterns.
    *
+   * Ignore patterns are matched against paths relative to `src`, matching the
+   * convention used by the scripts scan in `#scanForPackageJsonFiles`. This
+   * way an author's `mfile.ignore` entries have a single, consistent root
+   * regardless of which part of the pipeline consumes them.
+   *
    * @private
+   * @param {DirectoryObject} src - The project `src/` directory (ignore root)
    * @param {DirectoryObject} res - The source resources directory
    * @param {DirectoryObject} work - The destination work directory
    * @param {Array<string>} ignore - Glob patterns to ignore
    * @returns {Promise<void>}
    */
-  #recursiveResourcesCopy = async(res, work, ignore) => {
+  #recursiveResourcesCopy = async(src, res, work, ignore) => {
     const found = await res.glob("**/*")
     const files = found.files.filter(
-      f => !this.#isIgnored(f.relativeTo(res), ignore)
+      f => !this.#isIgnored(f.relativeTo(src), ignore)
     )
 
     await Promised.settle(
