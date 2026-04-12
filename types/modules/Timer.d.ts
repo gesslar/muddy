@@ -1,5 +1,5 @@
 export default class Timer extends MudletModule {
-    constructor(object?: {});
+    constructor(object: {}, glog: any);
     get command(): any;
     get time(): any;
     get isTempTimer(): any;

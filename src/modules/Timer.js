@@ -2,15 +2,19 @@ import {Valid} from "@gesslar/toolkit"
 
 import MudletModule from "./MudletModule.js"
 
+const DEFAULT_TIME = "00:00:00.000"
+
 export default class Timer extends MudletModule {
   #meta = new Map()
 
-  constructor(object={}) {
+  constructor(object={}, glog) {
     super(object)
+
+    Valid.type(glog, "Glog")
 
     const {
       command="",
-      time="00:00:00.000",
+      time=DEFAULT_TIME,
       isTempTimer="no",
       isOffsetTimer="no"
     } = object
@@ -26,6 +30,32 @@ export default class Timer extends MudletModule {
     // Validate yes/no attributes
     Valid.assert(isTempTimer === "yes" || isTempTimer === "no", "isTempTimer must be 'yes' or 'no'")
     Valid.assert(isOffsetTimer === "yes" || isOffsetTimer === "no", "isOffsetTimer must be 'yes' or 'no'")
+
+    // TimerGroup folders expose time/command/script fields in the Mudlet
+    // UI but Mudlet does not fire any of them at runtime. Preserve
+    // whatever the author provided in the XML (no silent rewriting)
+    // but warn that Mudlet will not act on them.
+    if(this.isFolder === "yes") {
+      const inertFields = []
+
+      if(time !== DEFAULT_TIME)
+        inertFields.push("time")
+
+      if(command !== "")
+        inertFields.push("command")
+
+      if(this.script !== "")
+        inertFields.push("script")
+
+      if(inertFields.length > 0) {
+        glog.warn(
+          `Timer '${this.name}' is a folder (TimerGroup) and sets `+
+          `${inertFields.join(", ")} — Mudlet does not fire times, `+
+          `commands, or scripts at the folder level. Consider moving `+
+          `them to a child Timer.`
+        )
+      }
+    }
 
     // Store metadata
     this.#meta.set("command", command)
