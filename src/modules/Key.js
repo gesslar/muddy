@@ -124,7 +124,42 @@ export default class Key extends MudletModule {
     Valid.type(command, "String")
     Valid.type(keys, "String")
 
-    const {keyCode, keyModifier} = parseKeys(keys, this.name, glog)
+    // KeyGroup folders expose keys/command/script fields in the Mudlet
+    // UI but Mudlet does not fire any of them at runtime. Auto-wrapped
+    // folders arrive with everything empty, so there is nothing to
+    // parse — skip the parse and zero the key fields. When an author
+    // explicitly sets any of them on a folder, preserve their values
+    // in the XML (no silent rewriting) but warn that Mudlet will not
+    // act on them.
+    if(this.isFolder === "yes") {
+      const inertFields = []
+
+      if(keys !== "")
+        inertFields.push("keys")
+
+      if(command !== "")
+        inertFields.push("command")
+
+      if(this.script !== "")
+        inertFields.push("script")
+
+      if(inertFields.length > 0) {
+        glog.warn(
+          `Key '${this.name}' is a folder (KeyGroup) and sets `+
+          `${inertFields.join(", ")} — Mudlet does not fire bindings, `+
+          `commands, or scripts at the folder level. Consider moving `+
+          `them to a child Key.`
+        )
+      }
+    }
+
+    // Auto-wrap folder case: match Mudlet's TKey defaults so round-tripping
+    // produces the same bytes Mudlet's own exporter writes. TKey.h:90-91:
+    //   mKeyCode     = Qt::Key_unknown (0x01FFFFFF = 33554431)
+    //   mKeyModifier = Qt::NoModifier  (0)
+    const {keyCode, keyModifier} = this.isFolder === "yes" && keys === ""
+      ? {keyCode: 0x01FFFFFF, keyModifier: 0}
+      : parseKeys(keys, this.name, glog)
 
     this.#meta.set("command", command)
     this.#meta.set("keys", keys)
