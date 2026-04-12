@@ -54,7 +54,7 @@
   "dependencies": {
     "@gesslar/actioneer": "^3.0.1",
     "@gesslar/colours": "^1.0.0",
-    "@gesslar/toolkit": "^5.0.1",
+    "@gesslar/toolkit": "^5.1.0",
     "adm-zip": "^0.5.17",
     "commander": "^14.0.3",
     "xmlbuilder2": "^4.0.3"
