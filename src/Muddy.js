@@ -428,7 +428,7 @@ export default class Muddy {
     const definitions = node.get("definitions")
     if(definitions && definitions.length > 0) {
       for(const def of definitions)
-        modules.push(new cl(def))
+        modules.push(new cl(def, glog))
     }
 
     // For the root package node we never create a folder wrapper; its modules
@@ -449,7 +449,7 @@ export default class Muddy {
         isFolder: "yes",
         isActive: "yes",
         script: "",
-      })
+      }, glog)
 
       modules.forEach(m => folder.addChild(m))
 
