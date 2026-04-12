@@ -13,11 +13,93 @@ import MudletModule from "./MudletModule.js"
   needs this information. 🤷🏻 (and no, I'm not passing it along)
 */
 
+// Mudlet pattern type constants (from TTrigger.h)
+const PATTERN_TYPES = Object.freeze({
+  substring: 0,
+  regex: 1,
+  begin: 2,
+  exact: 3,
+  lua: 4,
+  spacer: 5,
+  color: 6,
+  prompt: 7,
+})
+
+// Muddler JSON field name → Mudlet XML field name
+const FIELD_MAP = Object.freeze({
+  command: "mCommand",
+  multiline: "isMultiline",
+  multilineDelta: "conditonLineDelta",
+  matchall: "isPerlSlashGOption",
+  filter: "isFilterTrigger",
+  fireLength: "mStayOpen",
+  highlight: "isColorizerTrigger",
+  highlightFG: "mFgColor",
+  highlightBG: "mBgColor",
+  soundFile: "mSoundFile",
+})
+
+// Fields that must be numeric after translation
+const NUMERIC_FIELDS = new Set(["mStayOpen", "conditonLineDelta"])
+
+/**
+ * Translates muddler-friendly JSON field names to the internal
+ * Mudlet XML field names expected by the Trigger constructor.
+ *
+ * @param {object} object - The raw definition object.
+ * @returns {object} A new object with translated field names.
+ */
+function translate(object) {
+  const result = {...object}
+
+  // patterns → regexCodeList + regexCodePropertyList
+  if(result.patterns && !result.regexCodeList) {
+    result.regexCodeList = result.patterns.map(p => p.pattern)
+    result.regexCodePropertyList = result.patterns.map(p => {
+      const code = PATTERN_TYPES[p.type]
+      Valid.assert(code !== undefined, `Unknown pattern type '${p.type}'`)
+
+      return code
+    })
+    delete result.patterns
+  }
+
+  // Map friendly field names to internal names
+  for(const [friendly, internal] of Object.entries(FIELD_MAP)) {
+    if(friendly in result && !(internal in result)) {
+      result[internal] = result[friendly]
+      delete result[friendly]
+    }
+  }
+
+  // Coerce string numerics
+  for(const field of NUMERIC_FIELDS) {
+    if(typeof result[field] === "string") {
+      result[field] = parseInt(result[field], 10)
+    }
+  }
+
+  // Derive boolean flags when not explicitly set
+  if(!("isSoundTrigger" in result) && result.mSoundFile) {
+    result.isSoundTrigger = "yes"
+  }
+
+  if(!("isColorTrigger" in result) && result.regexCodePropertyList) {
+    const hasColor = result.regexCodePropertyList.includes(PATTERN_TYPES.color)
+    if(hasColor) {
+      result.isColorTrigger = "yes"
+    }
+  }
+
+  return result
+}
+
 export default class Trigger extends MudletModule {
   #meta = new Map()
 
   constructor(object={}) {
-    super(object)
+    const translated = translate(object)
+    super(translated)
 
     const {
       triggerType=0,
@@ -40,7 +122,7 @@ export default class Trigger extends MudletModule {
       isColorTrigger="no",
       isColorTriggerFg="no",
       isColorTriggerBg="no"
-    } = object
+    } = translated
 
     // Validate triggerType (0-7)
     Valid.type(triggerType, "Number")
