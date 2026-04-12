@@ -112,7 +112,7 @@ export default class Key extends MudletModule {
    *   Alt/Opt/Option).
    * @param {string} [object.command] - Literal command to send when the
    *   key fires (only used when `script` is empty).
-   * @param {Glog} glog - Logger instance used for chord diagnostics
+   * @param {object} glog - Logger instance used for chord diagnostics
    */
   constructor(object={}, glog) {
     super(object)

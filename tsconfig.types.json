@@ -30,6 +30,7 @@
     "preserveConstEnums": true
   },
   "include": [
+    "src/Muddy.js",
     "src/Type.js",
     "src/modules/**/*.js"
   ],
