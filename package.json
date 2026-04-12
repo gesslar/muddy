@@ -60,7 +60,7 @@
     "xmlbuilder2": "^4.0.3"
   },
   "devDependencies": {
-    "@gesslar/uglier": "^2.4.0",
+    "@gesslar/uglier": "^2.4.1",
     "console-ninja": "^1.0.0",
     "eslint": "^10.2.0",
     "typescript": "^6.0.2"
