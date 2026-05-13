@@ -37,29 +37,14 @@ The only difference between invoking **muddy** over **muddler** is the cli.
 ## Immediate Invocation
 
 ```shell
-# npm
-npx @gesslar/muddy --help
-
-# npm
 npx @gesslar/muddy --help
 ```
 
 ## Install as a dependency, if you want, you don't have to
 
 ```shell
-# npm
-npm add -d @gesslar/muddy
-
-# npm
 npm i -d @gesslar/muddy
 ```
-
-## Post Hocktuah
-
-Also, shout out to [@Edru2](https://github.com/Edru2) for
-[DeMuddler](https://github.com/Edru2/DeMuddler) which is just sex on a stick.
-
-Which is exactly how everybody likes their sex, yes? Yes. Okay.
 
 ## Features unique to muddy
 
@@ -109,6 +94,28 @@ Patterns are matched against relative paths within `src/`. They apply to:
 Standard glob syntax is supported (e.g. `*`, `**`, `?`). If `ignore` is omitted
 or empty, all files are included as usual.
 
+### Version management
+
+muddy can bump, print, or set the semantic version in your `mfile` directly,
+without the clean-tree-and-commit requirements of `npm version`.
+
+```shell
+# Bump
+muddy version patch          # 1.2.3 -> 1.2.4
+muddy version minor          # 1.2.3 -> 1.3.0
+muddy version major          # 1.2.3 -> 2.0.0
+
+# Print the current version (plain stdout — friendly to $(…) capture)
+muddy version current
+
+# Set explicitly
+muddy version set 4.5.6
+```
+
+The mfile is rewritten in place via a targeted regex, so existing formatting
+(quote style, spacing, key order) is preserved. No git commit or tag is
+created — that's left entirely up to you.
+
 ## License
 
 `@gesslar/muddy` is released under the [0BSD](LICENSE.txt).
@@ -124,6 +131,13 @@ licenses:
 | [adm-zip](https://github.com/cthackers/adm-zip) | MIT |
 | [commander](https://github.com/tj/commander.js) | MIT |
 | [xmlbuilder2](https://github.com/oozcitak/xmlbuilder2) | MIT |
+
+## Post Hocktuah
+
+Also, shout out to [@Edru2](https://github.com/Edru2) for
+[DeMuddler](https://github.com/Edru2/DeMuddler) which is just sex on a stick.
+
+Which is exactly how everybody likes their sex, yes? Yes. Okay.
 
 ## Postmate
 
