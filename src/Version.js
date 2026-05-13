@@ -43,7 +43,7 @@ export default class Version {
 
     // Regex-replace rather than parse + re-emit, so the file's existing
     // formatting (quote style, spacing, key order, trailing commas) is preserved.
-    const versionRegex = /("version"\s*:\s*)(["'])[^"'\n]*\2/
+    const versionRegex = /^(\s*"version"\s*:\s*)(["'])[^"'\n]*\2/m
 
     Valid.assert(versionRegex.test(mfileRaw), `Could not locate "version" key in ${mfile}`)
 
