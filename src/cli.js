@@ -2,7 +2,7 @@
 
 import c from "@gesslar/colours"
 import {Collection, DirectoryObject, FileObject, Glog, Sass, Term} from "@gesslar/toolkit"
-import {Command} from "commander"
+import {Argument, Command} from "commander"
 import process from "node:process"
 
 import Add from "./Add.js"
@@ -10,6 +10,7 @@ import Generate from "./Generate.js"
 import Muddy from "./Muddy.js"
 import Type from "./Type.js"
 import Watch from "./Watch.js"
+import Version from "./Version.js"
 
 const aliasNames  = ["OK", "INFO", "WARN", "ERR"]
 const aliasCodes  = ["{<I}{F064}", "{<I}{F023}", "{<I}{F178}", "{<I}{F166}"]
@@ -20,7 +21,7 @@ const glogColourNames   = ["success", "info", "warn", "error"]
 const glogColourCodes   = ["{F035}", "{F033}", "{F208}", "{F032}"]
 
 void (async() => {
-  const opts = {}, args = []
+  const opts = {}
 
   try {
     // Initialize colours aliases
@@ -42,6 +43,8 @@ void (async() => {
       ))
 
     const program = new Command("muddy")
+
+    program
       .argument("[directory]", "The project directory containing an 'mfile' file and 'src/' directory.")
       .option("-g, --generate", "Generate a new muddy project skeleton.", false)
       .option("-w, --watch", "Enable watch mode.", false)
@@ -52,76 +55,112 @@ void (async() => {
         `Add a new module of the given type (${Type.SINGLE.join(", ")}).`
       )
       .option("--name <name>", "Name for the new module (used with --add).")
-      .parse()
+      .action(muddy)
 
-    Object.assign(opts, program.opts())
-    args.push(...program.args)
+    const versionCmd = program
+      .command("version")
+      .description("Increment the semantic version (major, minor, or patch)")
+      .addArgument(new Argument("<kind>").choices(["major", "minor", "patch"]))
+      .action(incrementVersion)
 
-    const dirArg = args.join(" ").trim()
-    const cwd = new DirectoryObject(dirArg || ".")
+    versionCmd
+      .command("current")
+      .description("Print the current semantic version")
+      .action(currentVersion)
 
-    if(!await cwd.exists) {
-      glog.error(`No such directory '${dirArg}'.`)
-      process.exit(1)
-    }
+    versionCmd
+      .command("set")
+      .description("Set the semantic version to an explicit x.y.z value")
+      .addArgument(new Argument("<semver>"))
+      .action(setVersion)
 
-    if(opts.add) {
-      await new Add().run(cwd, glog, opts.add, opts.name)
+    await program.parseAsync()
 
-      return
-    }
+    async function muddy(directory, options) {
+      Object.assign(opts, options)
 
-    if(opts.generate) {
-      await new Generate().run(cwd, glog)
+      const dirArg = directory?.trim() ?? ""
+      const cwd = new DirectoryObject(dirArg || ".")
 
-      return
-    }
-
-    let mfileObject = null
-
-    if(opts.mfile) {
-      mfileObject = new FileObject(opts.mfile, cwd)
-
-      if(!await mfileObject.exists) {
-        glog.error(`No such mfile '${opts.mfile}'.`)
+      if(!await cwd.exists) {
+        glog.error(`No such directory '${dirArg}'.`)
         process.exit(1)
       }
 
-      if(!await cwd.hasDirectory("src")) {
-        glog.error(`'${cwd.path}' is not a valid muddy project directory.`)
-        process.exit(1)
+      if(opts.add) {
+        await new Add().run(cwd, glog, opts.add, opts.name)
+
+        return
       }
-    } else {
-      if(!(await cwd.hasDirectory("src") && await cwd.hasFile("mfile"))) {
-        glog.error(`'${cwd.path}' is not a valid muddy project directory.`)
-        process.exit(1)
+
+      if(opts.generate) {
+        await new Generate().run(cwd, glog)
+
+        return
+      }
+
+      let mfileObject = null
+
+      if(opts.mfile) {
+        mfileObject = new FileObject(opts.mfile, cwd)
+
+        if(!await mfileObject.exists) {
+          glog.error(`No such mfile '${opts.mfile}'.`)
+          process.exit(1)
+        }
+
+        if(!await cwd.hasDirectory("src")) {
+          glog.error(`'${cwd.path}' is not a valid muddy project directory.`)
+          process.exit(1)
+        }
+      } else {
+        if(!(await cwd.hasDirectory("src") && await cwd.hasFile("mfile"))) {
+          glog.error(`'${cwd.path}' is not a valid muddy project directory.`)
+          process.exit(1)
+        }
+      }
+
+      if(opts.watch) {
+        setupAbortHandlers()
+        await new Watch().run(cwd, glog, mfileObject)
+      } else {
+        await new Muddy().run(cwd, glog, mfileObject)
       }
     }
 
-    if(opts.watch) {
-      setupAbortHandlers()
-      await new Watch().run(cwd, glog, mfileObject)
-    } else {
-      await new Muddy().run(cwd, glog, mfileObject)
+    /**
+     * Creates handlers for various reasons that the application may crash.
+     */
+    function setupAbortHandlers() {
+      void["SIGINT", "SIGTERM", "SIGHUP"].forEach(signal => {
+        process.on(signal, () => {
+          Term
+            .setLineMode()
+            .showCursor()
+            .pause()
+
+          process.exit(0)
+        })
+      })
+    }
+
+    async function incrementVersion(kind) {
+      // Pull in root opts so global flags like --nerd surface to the catch below.
+      Object.assign(opts, program.opts())
+      await Version.increment(kind, glog)
+    }
+
+    async function currentVersion() {
+      Object.assign(opts, program.opts())
+      await Version.current()
+    }
+
+    async function setVersion(newVersion) {
+      Object.assign(opts, program.opts())
+      await Version.set(newVersion, glog)
     }
   } catch(error) {
     Sass.from(error, "Starting muddy.").report(opts.nerd ?? false)
-    process.exitCode = 1
-  }
-
-  /**
-   * Creates handlers for various reasons that the application may crash.
-   */
-  function setupAbortHandlers() {
-    void["SIGINT", "SIGTERM", "SIGHUP"].forEach(signal => {
-      process.on(signal, () => {
-        Term
-          .setLineMode()
-          .showCursor()
-          .pause()
-
-        process.exit(0)
-      })
-    })
+    process.exit(1)
   }
 })()
