@@ -2,3 +2,4 @@ node_modules/
 work/
 dist/
 test/fixtures/**/build/
+.claude/
