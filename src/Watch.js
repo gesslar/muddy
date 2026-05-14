@@ -1,8 +1,10 @@
-import {Disposer, Notify, Sass, Term, Time} from "@gesslar/toolkit"
+import {Disposer, Notify, Sass, Term} from "@gesslar/toolkit"
 import {watch} from "node:fs/promises"
 import process from "node:process"
 
 import Muddy from "./Muddy.js"
+
+const DEBOUNCE_MS = 250
 
 /**
  * @import {DirectoryObject} from "@gesslar/toolkit"
@@ -36,6 +38,8 @@ export default class Watch {
   #pending = false
   /** @type {boolean} */
   #busy = false
+  /** @type {ReturnType<typeof setTimeout>|null} */
+  #debounceTimer = null
 
   /**
    * Main execution point.
@@ -78,29 +82,7 @@ export default class Watch {
         ;(async() => {
           try {
             for await(const _ of watcher) {
-              if(this.#busy) {
-                this.#pending = true
-                continue
-              }
-
-              this.#pending = false
-              this.#busy = true
-
-              while(true) {
-                await Time.after(50)
-                await new Muddy().run(
-                  this.#projectDirectory, this.#glog, this.#mfileObject
-                )
-
-                if(this.#pending) {
-                  this.#pending = false
-                  continue
-                }
-
-                break
-              }
-
-              this.#busy = false
+              this.#scheduleRun()
             }
           } catch(err) {
             if(err.name === "AbortError")
@@ -111,6 +93,39 @@ export default class Watch {
         })()
       }
     } catch {}
+  }
+
+  #scheduleRun() {
+    if(this.#busy) {
+      this.#pending = true
+
+      return
+    }
+
+    if(this.#debounceTimer)
+      clearTimeout(this.#debounceTimer)
+
+    this.#debounceTimer = setTimeout(() => {
+      this.#debounceTimer = null
+      this.#runMuddy().catch(err => {
+        Sass.new("Build error during watch.", err).report(true)
+      })
+    }, DEBOUNCE_MS)
+  }
+
+  async #runMuddy() {
+    this.#busy = true
+
+    try {
+      do {
+        this.#pending = false
+        await new Muddy().run(
+          this.#projectDirectory, this.#glog, this.#mfileObject
+        )
+      } while(this.#pending)
+    } finally {
+      this.#busy = false
+    }
   }
 
   /**
