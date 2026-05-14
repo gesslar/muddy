@@ -77,7 +77,7 @@ export default class Add {
    * Generate a temporary name that doesn't conflict with existing entries.
    *
    * @param {string} type - The singular module type.
-   * @param {Array<object>} entries - Existing entries.
+   * @param {Array<unknown>} entries - Existing entries.
    * @returns {string}
    */
   #tempName(type, entries) {
