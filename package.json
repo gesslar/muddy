@@ -56,7 +56,7 @@
     "@gesslar/colours": "^1.0.0",
     "@gesslar/toolkit": "^5.4.0",
     "adm-zip": "^0.5.17",
-    "commander": "^14.0.3",
+    "commander": "^15.0.0",
     "xmlbuilder2": "^4.0.3"
   },
   "devDependencies": {
