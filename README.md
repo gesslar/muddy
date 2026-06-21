@@ -116,6 +116,17 @@ The mfile is rewritten in place via a targeted regex, so existing formatting
 (quote style, spacing, key order) is preserved. No git commit or tag is
 created — that's left entirely up to you.
 
+## Post Hocktuah
+
+Also, shout out to [@Edru2](https://github.com/Edru2) for
+[DeMuddler](https://github.com/Edru2/DeMuddler) which is just sex on a stick.
+
+Which is exactly how everybody likes their sex, yes? Yes. Okay.
+
+## Postmate
+
+_did you know there's a javascript.com?? I just found that out. holy shit._
+
 ## License
 
 `@gesslar/muddy` is released under the [0BSD](LICENSE.txt).
@@ -131,14 +142,3 @@ licenses:
 | [adm-zip](https://github.com/cthackers/adm-zip) | MIT |
 | [commander](https://github.com/tj/commander.js) | MIT |
 | [xmlbuilder2](https://github.com/oozcitak/xmlbuilder2) | MIT |
-
-## Post Hocktuah
-
-Also, shout out to [@Edru2](https://github.com/Edru2) for
-[DeMuddler](https://github.com/Edru2/DeMuddler) which is just sex on a stick.
-
-Which is exactly how everybody likes their sex, yes? Yes. Okay.
-
-## Postmate
-
-_did you know there's a javascript.com?? I just found that out. holy shit._
