@@ -1,7 +1,7 @@
 # muddy
 
 <p align="center">
-  <img src="mud-128.png" alt="Description of image">
+  <img src="mud-128.png" alt="muddy logo">
 </p>
 
 HEY!
