@@ -1,0 +1,9 @@
+{
+  "package": "Muddy",
+  "title": "Companion package for muddy.",
+  "version": "1.0.0",
+  "author": "gesslar",
+  "icon": "src/resources/mud-128.png",
+  "dependencies": "",
+  "outputFile": true
+}

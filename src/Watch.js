@@ -1,5 +1,5 @@
-import {Disposer, Notify, Sass, Term} from "@gesslar/toolkit"
-import {watch} from "node:fs/promises"
+import {Disposer, Sass, Term} from "@gesslar/toolkit"
+import chokidar from "chokidar"
 import process from "node:process"
 
 import Muddy from "./Muddy.js"
@@ -8,10 +8,9 @@ const DEBOUNCE_MS = 250
 
 /**
  * @import {DirectoryObject} from "@gesslar/toolkit"
- * @import {DisposerClass} from "@gesslar/toolkit"
  * @import {FileObject} from "@gesslar/toolkit"
  * @import {Glog} from "@gesslar/toolkit"
- * @import {NotifyClass} from "@gesslar/toolkit"
+ * @import {FSWatcher} from "chokidar"
  */
 
 export default class Watch {
@@ -25,15 +24,8 @@ export default class Watch {
   #mfileObject
   /** @type {Glog} */
   #glog
-  /** @type {NotifyClass} */
-  #notify
-  /** @type {DisposerClass} */
-  #disposer
-  // eslint-disable-next-line jsdoc/no-undefined-types
-  /** @type {Array<AsyncIterator>} */
-  #watchers = new Array()
-  /** @type {AbortController} */
-  #ac
+  /** @type {FSWatcher} */
+  #watcher
   /** @type {boolean} */
   #pending = false
   /** @type {boolean} */
@@ -54,45 +46,49 @@ export default class Watch {
     this.#mfile = mfileObject ?? this.#projectDirectory.getFile("mfile")
     this.#mfileObject = mfileObject ?? null
     this.#glog = log
-    this.#notify = Notify
-    this.#disposer = Disposer
 
     await new Muddy().run(this.#projectDirectory, this.#glog, this.#mfileObject)
 
     this.#initialiseInputHandler()
     this.#startWatch()
+
+    process.on("SIGTERM", () => this.#shutdown())
   }
 
-  async #startWatch() {
-    this.#ac = new AbortController()
+  #startWatch() {
+    const toWatch = [this.#srcDirectory.path, this.#mfile.path]
 
-    const toWatch = [this.#srcDirectory, this.#mfile]
+    this.#watcher = chokidar.watch(toWatch, {
+      persistent: true,
+      ignoreInitial: true
+    })
 
+    this.#watcher
+      .on("all", () => this.#scheduleRun())
+      .on("error", err => {
+        this.#glog.error(`Watch error: ${err}\n${err.stack}`)
+        this.#shutdown(1)
+      })
+  }
+
+  /**
+   * Tears down watch mode and exits.
+   *
+   * Restores terminal state via the registered disposers, closes the file
+   * watcher (releasing its fs watches), then exits.
+   *
+   * @param {number} [code] - Process exit code.
+   * @returns {Promise<void>}
+   */
+  async #shutdown(code = 0) {
     try {
-      for(const w of toWatch) {
-        const watcher = watch(w.url, {
-          recursive: w.isDirectory ?? false,
-          persistent: true,
-          signal: this.#ac.signal,
-          overflow: "error"
-        })
+      Disposer.dispose()
+      await this.#watcher?.close()
+    } catch(error) {
+      Sass.new("Error during shutdown.", error).report(true)
+    }
 
-        this.#watchers.push(watcher)
-
-        ;(async() => {
-          try {
-            for await(const _ of watcher) {
-              this.#scheduleRun()
-            }
-          } catch(err) {
-            if(err.name === "AbortError")
-              return
-
-            throw err
-          }
-        })()
-      }
-    } catch {}
+    process.exit(code)
   }
 
   #scheduleRun() {
@@ -141,17 +137,20 @@ export default class Watch {
       .utf8()
       .hideCursor()
 
+    Disposer.register(() => {
+      Term
+        .setLineMode()
+        .showCursor()
+        .pause()
+        .write("\nExiting.\n")
+    })
+
     process.stdin.on("data", async key => {
       try {
-        if(key === "q" || key === "\u0003" || key === "\u0004") {   // Ctrl+C
-          Term
-            .setLineMode()
-            .showCursor()
-            .pause()
-            .write("\nExiting.\n")
-
-          process.exit(0)
-        }
+        if(key === "q" || key === "\u0003" || key === "\u0004")   // Ctrl+C
+          await this.#shutdown()
+        else if(key === "r")
+          this.#scheduleRun()
       } catch(error) {
         Sass.new("Processing input.", error).report(true)
       }

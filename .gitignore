@@ -3,3 +3,4 @@ work/
 dist/
 test/fixtures/**/build/
 .claude/
+.vscode/settings.json
