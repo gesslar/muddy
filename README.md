@@ -94,6 +94,21 @@ Patterns are matched against relative paths within `src/`. They apply to:
 Standard glob syntax is supported (e.g. `*`, `**`, `?`). If `ignore` is omitted
 or empty, all files are included as usual.
 
+### Watch mode
+
+Run muddy with `-w` (or `--watch`) to build once and then rebuild
+automatically whenever a file in `src/` or your `mfile` changes.
+
+```shell
+muddy . --watch
+```
+
+While watch mode is running, a few keys are available:
+
+- **`r`** — force a rebuild immediately, without waiting for a file change.
+- **`Ctrl+C`** / **`Ctrl+D`** — quit watch mode and restore the terminal.
+  **`q`** is a convenience alias for the same.
+
 ### Version management
 
 muddy can bump, print, or set the semantic version in your `mfile` directly,
@@ -115,6 +130,22 @@ muddy version set 4.5.6
 The mfile is rewritten in place via a targeted regex, so existing formatting
 (quote style, spacing, key order) is preserved. No git commit or tag is
 created — that's left entirely up to you.
+
+## Muddy the mpackage
+
+You can also hot-reload your packages in Mudlet by installing the Muddy
+mpackage. Edit your source, rebuild it, or let it rebuild automatically in
+watch mode, and Muddy will see it, uninstall your current package, and then
+reinstall it for you. Neat, huh?
+
+To install, simply run:
+
+```lua
+lua installPackage("https://github.com/gesslar/Muddy/releases/latest/download/Muddy.mpackage")
+```
+
+Once installed in Mudlet, open the package manager (Alt-O) and check out the
+documentation to see how to use it!
 
 ## Post Hocktuah
 
@@ -140,5 +171,6 @@ licenses:
 | [@gesslar/colours](https://github.com/gesslar/colours) | 0BSD |
 | [@gesslar/toolkit](https://github.com/gesslar/toolkit) | 0BSD |
 | [adm-zip](https://github.com/cthackers/adm-zip) | MIT |
+| [chokidar](https://github.com/paulmillr/chokidar) | MIT |
 | [commander](https://github.com/tj/commander.js) | MIT |
 | [xmlbuilder2](https://github.com/oozcitak/xmlbuilder2) | MIT |
