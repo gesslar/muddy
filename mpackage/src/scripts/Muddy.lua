@@ -66,13 +66,16 @@ function __PKGNAME__:stop()
     killAnonymousEventHandler(self.eventHandler)
     self.eventHandler = nil
   end
-  removeFileWatch(self.path .. "/.output")
+  removeFileWatch(self.outputPath)
 end
 
 local function execute(item)
   if not item then
     debugc("Attempted to execute nil or false, must be string or function")
+
+    return
   end
+
   local itype = type(item)
   if itype == "string" then
     local f, e = loadstring("return " .. item)
@@ -143,7 +146,7 @@ function __PKGNAME__:reload()
   end
 
   local
-  prer, postr, prei, posti
+    prer, postr, prei, posti
     =
     self.preremove, self.postremove, self.preinstall, self.postinstall
 
@@ -173,6 +176,7 @@ function __PKGNAME__:reload()
   local succ = installPackage(path)
   if not succ then
     debugc("Could not install package at " .. path)
+
     return
   end
 

@@ -171,5 +171,6 @@ licenses:
 | [@gesslar/colours](https://github.com/gesslar/colours) | 0BSD |
 | [@gesslar/toolkit](https://github.com/gesslar/toolkit) | 0BSD |
 | [adm-zip](https://github.com/cthackers/adm-zip) | MIT |
+| [chokidar](https://github.com/paulmillr/chokidar) | MIT |
 | [commander](https://github.com/tj/commander.js) | MIT |
 | [xmlbuilder2](https://github.com/oozcitak/xmlbuilder2) | MIT |

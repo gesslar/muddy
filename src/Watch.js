@@ -53,6 +53,7 @@ export default class Watch {
     this.#startWatch()
 
     process.on("SIGTERM", () => this.#shutdown())
+    process.on("SIGINT", () => this.#shutdown())
   }
 
   #startWatch() {
@@ -130,7 +131,7 @@ export default class Watch {
    *
    * @returns {void}
    */
-  async #initialiseInputHandler() {
+  #initialiseInputHandler() {
     Term
       .setCharMode()
       .resume()

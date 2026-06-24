@@ -109,5 +109,7 @@ an `active` flag per project so you can park ones you're not touching, fancier
 cache-killing, a little reload-the-helper-itself dance after you edit the list.
 
 
-##
-The Muddy companion package is licensed
+## License
+
+Unlike muddy, the Muddy companion package is licensed as MIT because it derives
+chunks from muddler's mpackage.
