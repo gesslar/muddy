@@ -565,7 +565,12 @@ export default class Muddy {
       if(value === undefined || value === null || value === "")
         continue
 
-      out.push(`${v} = ${Lua.longString(String(value))}`)
+      // If this is icon, we only need the icon's name. Mudlet handles the
+      // rest.
+      if(k === "icon")
+        out.push(`${v} = ${Lua.longString(String(new FileObject(value).name))}`)
+      else
+        out.push(`${v} = ${Lua.longString(String(value))}`)
     }
 
     // This isn't sourced anywhere, so we just make it up.

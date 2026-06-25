@@ -1,9 +1,5 @@
 ---@type Glu
 local glu = require("__PKGNAME__/vendor/Glu-single")("__PKGNAME__")
-local validEvents = {
-  "preremove", "postremove",
-  "preinstall", "postinstall"
-}
 
 __PKGNAME__ = __PKGNAME__ or {
   path = getMudletHomeDir(),
@@ -104,7 +100,7 @@ local function _uninstall(name, pre, post)
   if pre then
     debugc(f "  Firing preremove for pkg: {name}")
     execute(pre)
-    debugc(f "  END premove for pkg: {name}")
+    debugc(f "  END preremove for pkg: {name}")
   end
 
   uninstallPackage(name)
@@ -113,7 +109,7 @@ local function _uninstall(name, pre, post)
   if post then
     debugc(f "  Firing postremove for pkg: {name}")
     execute(post)
-    debugc(f "  END postmove for pkg: {name}")
+    debugc(f "  END postremove for pkg: {name}")
   end
 
   raiseEvent("__PKGNAME__:uninstalled", name)
@@ -194,8 +190,6 @@ function __PKGNAME__:reload()
     prer, postr, prei, posti
     =
     self.preremove, self.postremove, self.preinstall, self.postinstall
-
-  local ok, err
 
   registerAnonymousEventHandler("__PKGNAME__:uninstalled", function(_, uninstalledName)
     if uninstalledName ~= name then return true end
