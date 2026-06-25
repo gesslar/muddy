@@ -1,24 +1,24 @@
 ---@type Glu
-local glu = require("Muddy/vendor/Glu-single")("Muddy")
+local glu = require("__PKGNAME__/vendor/Glu-single")("__PKGNAME__")
 local validEvents = {
   "preremove", "postremove",
   "preinstall", "postinstall"
 }
 
-Muddy = Muddy or {
+__PKGNAME__ = __PKGNAME__ or {
   path = getMudletHomeDir(),
   watch = true,
   events = {}
 }
 
 ---@param cons table Constructor arguments.
-function Muddy:new(cons)
+function __PKGNAME__:new(cons)
   local ok, result
 
   ok, result = glu.table.associative(cons)
   if not ok or result == false then
     debugc(
-      "Error in constructor options passed to Muddy, or constructor " ..
+      "Error in constructor options passed to __PKGNAME__, or constructor " ..
       "options is not a table: " .. result
     )
 
@@ -44,7 +44,7 @@ function Muddy:new(cons)
   return instance
 end
 
-function Muddy:start()
+function __PKGNAME__:start()
   self:stop()
   self.watch = true
 
@@ -60,7 +60,7 @@ function Muddy:start()
   addFileWatch(self.outputPath)
 end
 
-function Muddy:stop()
+function __PKGNAME__:stop()
   self.watch = false
   if self.eventHandler then
     killAnonymousEventHandler(self.eventHandler)
@@ -101,29 +101,29 @@ end
 
 local function _uninstall(name, pre, post)
   debugc("preremove " .. name)
-  if prer then
+  if pre then
     debugc(f "  Firing preremove for pkg: {name}")
-    pcall(execute, pre)
+    execute(pre)
     debugc(f "  END premove for pkg: {name}")
   end
 
   uninstallPackage(name)
 
   debugc("postremove " .. name)
-  if postr then
+  if post then
     debugc(f "  Firing postremove for pkg: {name}")
-    pcall(execute, post)
+    execute(post)
     debugc(f "  END postmove for pkg: {name}")
   end
 
-  raiseEvent("muddy:uninstalled", name)
+  raiseEvent("__PKGNAME__:uninstalled", name)
 end
 
 local function _install(name, path, pre, post)
   debugc("preinstall " .. name)
-  if prei then
+  if pre then
     debugc(f "  Firing preinstall for pkg: {name}")
-    pcall(execute, pre)
+    execute(pre)
     debugc(f "  END preinstall for pkg: {name}")
   end
 
@@ -135,14 +135,16 @@ local function _install(name, path, pre, post)
   end
 
   debugc("postinstall " .. name)
-  if posti then
+  if post then
     debugc(f "  Firing postinstall for pkg: {name}")
-    pcall(execute, post)
+    execute(post)
     debugc(f "  END postinstall for pkg: {name}")
   end
+
+  raiseEvent("__PKGNAME__:installed", name)
 end
 
-function Muddy:reload()
+function __PKGNAME__:reload()
   local ok, result, err, output
 
   ok, result, err = pcall(glu.fd.read_json, self.outputPath)
@@ -195,11 +197,11 @@ function Muddy:reload()
 
   local ok, err
 
-  registerAnonymousEventHandler("muddy:uninstalled", function(_, uninstalledName)
-    if uninstalledName ~= name then return end
+  registerAnonymousEventHandler("__PKGNAME__:uninstalled", function(_, uninstalledName)
+    if uninstalledName ~= name then return true end
 
-    registerAnonymousEventHandler("muddy:installed", function(_, installedName)
-      if installedName ~= name then return end
+    registerAnonymousEventHandler("__PKGNAME__:installed", function(_, installedName)
+      if installedName ~= name then return true end
 
       debugc("Done reloading pkg " .. name)
     end, true)
