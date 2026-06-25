@@ -18,7 +18,17 @@ export default class Version {
     if(!await mfile.exists)
       throw Sass.new(`No such file ${mfile}`)
 
-    const data = await mfile.loadData()
+    // The mfile is plain JSON. Parse it strictly here so anything that isn't
+    // (JSON5 comments, YAML, trailing commas) is rejected with a clear error
+    // instead of being silently tolerated by the read but choking the rewrite.
+    let data
+
+    try {
+      data = JSON.parse(await mfile.read())
+    } catch(error) {
+      throw Sass.new(`${mfile} is not valid JSON: ${error.message}`)
+    }
+
     const version = data?.version
 
     if(!version)
@@ -28,8 +38,139 @@ export default class Version {
   }
 
   /**
-   * Rewrite the "version" value in the mfile via regex, preserving the rest
-   * of the file's formatting byte-for-byte.
+   * Locate the value span of the *root-level* "version" field in raw JSON text.
+   * Nesting depth is tracked across objects and arrays so a "version" buried
+   * inside another structure (e.g. a config block in a package.json) is skipped
+   * — only a direct child of the root object counts, regardless of where it sits
+   * or whether a nested one shares its value. Strings are scanned with
+   * backslash-escape awareness so quotes inside values don't derail the count.
+   *
+   * Callers validate the text with JSON.parse first, so the input is guaranteed
+   * to be strict JSON — no comments to skip, no trailing-comma surprises.
+   *
+   * @param {string} raw - The file's raw text (already validated as JSON).
+   * @returns {{start: number, end: number}|null} The [start, end) span of the
+   *   value's inner text (between its quotes), or null if there is no
+   *   root-level "version".
+   * @private
+   */
+  static #locateRootVersion(raw) {
+    const length = raw.length
+    let depth = 0
+    let i = 0
+
+    while(i < length) {
+      const ch = raw[i]
+
+      if(ch === "{" || ch === "[") {
+        depth++
+        i++
+
+        continue
+      }
+
+      if(ch === "}" || ch === "]") {
+        depth--
+        i++
+
+        continue
+      }
+
+      if(ch !== "\"" && ch !== "'") {
+        i++
+
+        continue
+      }
+
+      // Read a complete string token, honouring backslash escapes.
+      const quote = ch
+      let token = ""
+
+      i++
+
+      while(i < length && raw[i] !== quote) {
+        if(raw[i] === "\\") {
+          token += raw[i + 1] ?? ""
+          i += 2
+
+          continue
+        }
+
+        token += raw[i]
+        i++
+      }
+
+      i++ // step past the closing quote
+
+      // Only a depth-1 "version" key — i.e. one followed by a colon — qualifies.
+      if(depth !== 1 || token !== "version")
+        continue
+
+      let j = i
+
+      while(j < length && /\s/.test(raw[j]))
+        j++
+
+      if(raw[j] !== ":")
+        continue
+
+      j++
+
+      while(j < length && /\s/.test(raw[j]))
+        j++
+
+      const valueQuote = raw[j]
+
+      if(valueQuote !== "\"" && valueQuote !== "'")
+        return null
+
+      const start = j + 1
+      let k = start
+
+      while(k < length && raw[k] !== valueQuote) {
+        if(raw[k] === "\\") {
+          k += 2
+
+          continue
+        }
+
+        k++
+      }
+
+      return {start, end: k}
+    }
+
+    return null
+  }
+
+  /**
+   * Swap the root-level "version" value in a file, preserving the rest of the
+   * file's formatting (quote style, spacing, key order, trailing commas) and
+   * leaving any nested "version" keys untouched.
+   *
+   * @param {import("@gesslar/toolkit").FileObject} file - The file to update.
+   * @param {string} newVersion - The version to write.
+   * @returns {Promise<string|null>} The previous version, or null if the file
+   *   has no root-level "version" key (in which case nothing is written).
+   * @private
+   */
+  static async #replaceVersion(file, newVersion) {
+    const raw = await file.read()
+    const span = Version.#locateRootVersion(raw)
+
+    if(!span)
+      return null
+
+    const oldVersion = raw.slice(span.start, span.end)
+    const updated = raw.slice(0, span.start) + newVersion + raw.slice(span.end)
+
+    await file.write(updated)
+
+    return oldVersion
+  }
+
+  /**
+   * Rewrite the root-level "version" value in the mfile, preserving formatting.
    *
    * @param {import("@gesslar/toolkit").FileObject} mfile - The mfile to update.
    * @param {string} oldVersion - The current version (for the log message).
@@ -39,19 +180,60 @@ export default class Version {
    * @private
    */
   static async #writeVersion(mfile, oldVersion, newVersion, glog) {
-    const mfileRaw = await mfile.read()
+    const previous = await this.#replaceVersion(mfile, newVersion)
 
-    // Regex-replace rather than parse + re-emit, so the file's existing
-    // formatting (quote style, spacing, key order, trailing commas) is preserved.
-    const versionRegex = /^(\s*"version"\s*:\s*)(["'])[^"'\n]*\2/m
-
-    Valid.assert(versionRegex.test(mfileRaw), `Could not locate "version" key in ${mfile}`)
-
-    const newMfileRaw = mfileRaw.replace(versionRegex, `$1$2${newVersion}$2`)
-
-    await mfile.write(newMfileRaw)
+    Valid.assert(previous !== null, `Could not locate "version" key in ${mfile}`)
 
     glog.success(`${mfile} updated from ${oldVersion} => ${newVersion}`)
+  }
+
+  /**
+   * Keep a sibling package.json's version in sync with the version just written
+   * to the mfile. Missing file or missing "version" key is a warning, not an
+   * error — the mfile is already updated, so we never abort here.
+   *
+   * @param {string} newVersion - The version that was written to the mfile.
+   * @param {import("@gesslar/toolkit").Glog} glog - Logger instance.
+   * @param {boolean} [warn] - Whether to emit warnings when there is nothing to
+   *   sync (no package.json, invalid JSON, or no "version" key). Disabled by
+   *   --no-warn.
+   * @returns {Promise<void>}
+   * @private
+   */
+  static async #syncPackage(newVersion, glog, warn = true) {
+    const cwd = DirectoryObject.fromCwd()
+    const pkg = cwd.getFile("package.json")
+
+    if(!await pkg.exists) {
+      if(warn)
+        glog.warn(`--package was specified, but no package.json found in ${cwd}`)
+
+      return
+    }
+
+    // package.json is plain JSON; validate before touching it so a malformed
+    // file is reported rather than mis-edited.
+    let data
+
+    try {
+      data = JSON.parse(await pkg.read())
+    } catch {
+      if(warn)
+        glog.warn(`--package was specified, but ${pkg} is not valid JSON`)
+
+      return
+    }
+
+    if(typeof data?.version !== "string") {
+      if(warn)
+        glog.warn(`--package was specified, but ${pkg} has no "version" key`)
+
+      return
+    }
+
+    const previous = await this.#replaceVersion(pkg, newVersion)
+
+    glog.success(`${pkg} updated from ${previous} => ${newVersion}`)
   }
 
   /**
@@ -59,9 +241,13 @@ export default class Version {
    *
    * @param {"major"|"minor"|"patch"} kind - Which component to bump.
    * @param {import("@gesslar/toolkit").Glog} glog - Logger instance.
+   * @param {boolean} [syncPackage] - Also write the new version to a sibling
+   *   package.json.
+   * @param {boolean} [warn] - Emit a warning when --package finds nothing to
+   *   sync. Disabled by --no-warn.
    * @returns {Promise<void>}
    */
-  static async increment(kind, glog) {
+  static async increment(kind, glog, syncPackage = false, warn = true) {
     const {mfile, version} = await this.#loadMfile()
 
     glog.info(`Found ${mfile}`)
@@ -84,6 +270,9 @@ export default class Version {
     const newVersion = `${major}.${minor}.${patch}`
 
     await this.#writeVersion(mfile, version, newVersion, glog)
+
+    if(syncPackage)
+      await this.#syncPackage(newVersion, glog, warn)
   }
 
   /**
@@ -103,13 +292,20 @@ export default class Version {
    *
    * @param {string} newVersion - The SemVer to write (must be basic x.y.z form).
    * @param {import("@gesslar/toolkit").Glog} glog - Logger instance.
+   * @param {boolean} [syncPackage] - Also write the new version to a sibling
+   *   package.json.
+   * @param {boolean} [warn] - Emit a warning when --package finds nothing to
+   *   sync. Disabled by --no-warn.
    * @returns {Promise<void>}
    */
-  static async set(newVersion, glog) {
+  static async set(newVersion, glog, syncPackage = false, warn = true) {
     Valid.assert(Util.semver.basic.test(newVersion), `Invalid SemVer format '${newVersion}'`)
 
     const {mfile, version} = await this.#loadMfile()
 
     await this.#writeVersion(mfile, version, newVersion, glog)
+
+    if(syncPackage)
+      await this.#syncPackage(newVersion, glog, warn)
   }
 }

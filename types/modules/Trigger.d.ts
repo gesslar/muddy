@@ -1,3 +1,14 @@
+export const PATTERN_TYPES: Readonly<{
+    substring: 0;
+    regex: 1;
+    begin: 2;
+    exact: 3;
+    lua: 4;
+    spacer: 5;
+    color: 6;
+    prompt: 7;
+}>;
+export const PATTERN_TYPE_NAMES: readonly string[];
 export default class Trigger extends MudletModule {
     constructor(object?: {});
     get triggerType(): any;

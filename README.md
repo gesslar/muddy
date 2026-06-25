@@ -125,11 +125,20 @@ muddy version current
 
 # Set explicitly
 muddy version set 4.5.6
+
+# Keep a sibling package.json in sync with the version just written
+muddy version patch --package
+muddy version set 4.5.6 --package
 ```
 
 The mfile is rewritten in place via a targeted regex, so existing formatting
 (quote style, spacing, key order) is preserved. No git commit or tag is
 created — that's left entirely up to you.
+
+Pass `--package` to also write the new version into a `package.json` in the
+same directory, using the same formatting-preserving rewrite. If there's no
+`package.json` (or it has no `version` key), the mfile is still bumped and you
+get a warning that nothing was synced; add `--no-warn` to suppress it.
 
 ### Unpack an mpackage
 
