@@ -7,6 +7,8 @@ import os from "node:os"
 import path from "node:path"
 import {create, fragment} from "xmlbuilder2"
 
+import Disk from "./Disk.js"
+import Lua from "./Lua.js"
 import Type from "./Type.js"
 import Mfile from "./modules/Mfile.js"
 
@@ -555,12 +557,20 @@ export default class Muddy {
     const {mfile, workDirectory} = ctx
 
     const out = []
-    for(const [k,v] of Mfile.MFILE_TO_CONFIG.entries())
-      out.push(`${v} = [[${mfile[k]}]]`)
+    for(const [k,v] of Mfile.MFILE_TO_CONFIG.entries()) {
+      const value = mfile[k]
+
+      // Optional fields that are absent or empty are omitted entirely — never
+      // serialized as the literal string "undefined" (or an empty value).
+      if(value === undefined || value === null || value === "")
+        continue
+
+      out.push(`${v} = ${Lua.longString(String(value))}`)
+    }
 
     // This isn't sourced anywhere, so we just make it up.
     const now = this.#iso()
-    out.push(`created = [[${now}]]`)
+    out.push(`created = ${Lua.longString(now)}`)
     const configFile = workDirectory.getFile("config.lua")
     await configFile.write(out.join("\n"))
 
@@ -726,7 +736,7 @@ export default class Muddy {
    * @returns {Promise<unknown>} The context object
    */
   #cleanUp = async ctx => {
-    await this.#recursiveDelete(this.#temp, true)
+    await Disk.deleteRecursive(this.#temp, true)
 
     return ctx
   }
@@ -754,32 +764,6 @@ export default class Muddy {
     }
 
     return object
-  }
-
-  /**
-   * Recursively deletes a directory and its content.
-   *
-   * @private
-   * @param {DirectoryObject} dir - The directory to delete
-   * @param {boolean} [includeSelf=false] - Whether to delete the directory itself
-   * @returns {Promise<void>}
-   */
-  #recursiveDelete = async(dir, includeSelf=false) => {
-    const {files, directories} = await dir.read()
-
-    await Promised.settle(
-      [files, directories].flat().map(async e => {
-        if(e.isFile) {
-          await e.delete()
-        } else if(e.isDirectory) {
-          await this.#recursiveDelete(e)
-
-          await e.delete()
-        }
-      })
-    )
-
-    includeSelf && await dir.delete()
   }
 
   /**

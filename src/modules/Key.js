@@ -4,6 +4,7 @@ import {
   KEY_ALIAS_LOOKUP,
   KEY_CODE_LOOKUP,
   KEY_MODIFIERS,
+  KEY_UNKNOWN,
 } from "./KeyCode.js"
 import MudletModule from "./MudletModule.js"
 
@@ -158,7 +159,7 @@ export default class Key extends MudletModule {
     //   mKeyCode     = Qt::Key_unknown (0x01FFFFFF = 33554431)
     //   mKeyModifier = Qt::NoModifier  (0)
     const {keyCode, keyModifier} = this.isFolder === "yes" && keys === ""
-      ? {keyCode: 0x01FFFFFF, keyModifier: 0}
+      ? {keyCode: KEY_UNKNOWN, keyModifier: 0}
       : parseKeys(keys, this.name, glog)
 
     this.#meta.set("command", command)

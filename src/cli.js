@@ -9,6 +9,7 @@ import Add from "./Add.js"
 import Generate from "./Generate.js"
 import Muddy from "./Muddy.js"
 import Type from "./Type.js"
+import Unpack from "./Unpack.js"
 import Watch from "./Watch.js"
 import Version from "./Version.js"
 
@@ -56,6 +57,15 @@ void (async() => {
       )
       .option("--name <name>", "Name for the new module (used with --add).")
       .action(muddy)
+
+    program
+      .command("unpack")
+      .description("Unpack an .mpackage into a muddy project directory.")
+      .addArgument(new Argument("<mpackage>", "Path to the .mpackage file."))
+      .addArgument(new Argument("[directory]", "Target project directory (defaults to the package file name)."))
+      .option("--no-helper", "Do not emit a <Package>.MuddyHelper.lua watcher script.")
+      .option("--readme", "Write the package description to README.md instead of mfile.")
+      .action(unpack)
 
     const versionCmd = program
       .command("version")
@@ -141,6 +151,27 @@ void (async() => {
 
           process.exit(0)
         })
+      })
+    }
+
+    async function unpack(mpackage, directory, options) {
+      // Pull in root opts so global flags like --nerd surface to the catch below.
+      Object.assign(opts, program.opts())
+
+      const cwd = new DirectoryObject(".")
+      const mpackageFile = new FileObject(mpackage, cwd)
+
+      if(!await mpackageFile.exists) {
+        glog.error(`No such mpackage '${mpackage}'.`)
+        process.exit(1)
+      }
+
+      const target = directory?.trim() || mpackageFile.module
+      const projectDirectory = new DirectoryObject(target)
+
+      await new Unpack().run(mpackageFile, projectDirectory, glog, {
+        helper: options.helper,
+        readme: options.readme,
       })
     }
 

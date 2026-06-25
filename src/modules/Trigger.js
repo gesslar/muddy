@@ -14,7 +14,7 @@ import MudletModule from "./MudletModule.js"
 */
 
 // Mudlet pattern type constants (from TTrigger.h)
-const PATTERN_TYPES = Object.freeze({
+export const PATTERN_TYPES = Object.freeze({
   substring: 0,
   regex: 1,
   begin: 2,
@@ -24,6 +24,15 @@ const PATTERN_TYPES = Object.freeze({
   color: 6,
   prompt: 7,
 })
+
+// Inverse of PATTERN_TYPES: an array where the index is the Mudlet code and the
+// value is the muddler-friendly name. Derived from PATTERN_TYPES so the codes
+// live in exactly one place; used when unpacking codes back into names.
+export const PATTERN_TYPE_NAMES = Object.freeze(
+  Object.entries(PATTERN_TYPES)
+    .sort(([, a], [, b]) => a - b)
+    .map(([name]) => name)
+)
 
 // Muddler JSON field name → Mudlet XML field name
 const FIELD_MAP = Object.freeze({
