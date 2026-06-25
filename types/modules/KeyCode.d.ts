@@ -117,6 +117,12 @@ export const KEY_CODES: Readonly<{
     AsciiTilde: 126;
 }>;
 /**
+ * Qt::Key_unknown — the key code Mudlet stores for an unbound key (TKey.h
+ * `mKeyCode` default). Used both when auto-wrapping folder keys and when
+ * round-tripping them back out.
+ */
+export const KEY_UNKNOWN: 33554431;
+/**
  * Friendly aliases + typed-symbol shortcuts that resolve to a canonical
  * Qt::Key name. Lookup is case-insensitive so "esc", "Esc", "ESCAPE" and
  * "Escape" all land on the same bucket.
@@ -187,6 +193,20 @@ export const KEY_MODIFIERS: Readonly<{
     SUPER: 268435456;
     KEYPAD: 536870912;
 }>;
+/**
+ * Canonical modifier order for rendering a chord — each Qt modifier bit paired
+ * with the single label muddy emits, in the order QKeySequence::toString prints
+ * them. The reverse of the synonym-laden {@link KEY_MODIFIERS} lookup; bits are
+ * sourced from it so there is one place to change a value.
+ *
+ * @type {Array<[number, string]>}
+ */
+export const KEY_MODIFIER_NAMES: Array<[number, string]>;
 export const KEY_CODE_LOOKUP: Map<string, 65 | 66 | 67 | 68 | 69 | 70 | 71 | 72 | 73 | 74 | 75 | 76 | 77 | 78 | 79 | 80 | 81 | 82 | 83 | 84 | 85 | 86 | 87 | 88 | 89 | 90 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 32 | 16777216 | 16777217 | 16777218 | 16777219 | 16777220 | 16777221 | 16777222 | 16777223 | 16777224 | 16777225 | 16777232 | 16777233 | 16777234 | 16777235 | 16777236 | 16777237 | 16777238 | 16777239 | 16777264 | 16777265 | 16777266 | 16777267 | 16777268 | 16777269 | 16777270 | 16777271 | 16777272 | 16777273 | 16777274 | 16777275 | 16777276 | 16777277 | 16777278 | 16777279 | 16777280 | 16777281 | 16777282 | 16777283 | 16777284 | 16777285 | 16777286 | 16777287 | 33 | 34 | 35 | 36 | 37 | 38 | 39 | 40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 | 58 | 59 | 60 | 61 | 62 | 63 | 64 | 91 | 92 | 93 | 94 | 95 | 96 | 123 | 124 | 125 | 126>;
+/**
+ * Reverse of {@link KEY_CODES}: Qt key value -> canonical key name. Used to
+ * turn a stored key code back into the chord string a muddy author writes.
+ */
+export const KEY_CODE_NAMES: Map<65 | 66 | 67 | 68 | 69 | 70 | 71 | 72 | 73 | 74 | 75 | 76 | 77 | 78 | 79 | 80 | 81 | 82 | 83 | 84 | 85 | 86 | 87 | 88 | 89 | 90 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 32 | 16777216 | 16777217 | 16777218 | 16777219 | 16777220 | 16777221 | 16777222 | 16777223 | 16777224 | 16777225 | 16777232 | 16777233 | 16777234 | 16777235 | 16777236 | 16777237 | 16777238 | 16777239 | 16777264 | 16777265 | 16777266 | 16777267 | 16777268 | 16777269 | 16777270 | 16777271 | 16777272 | 16777273 | 16777274 | 16777275 | 16777276 | 16777277 | 16777278 | 16777279 | 16777280 | 16777281 | 16777282 | 16777283 | 16777284 | 16777285 | 16777286 | 16777287 | 33 | 34 | 35 | 36 | 37 | 38 | 39 | 40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 | 58 | 59 | 60 | 61 | 62 | 63 | 64 | 91 | 92 | 93 | 94 | 95 | 96 | 123 | 124 | 125 | 126, string>;
 export const KEY_ALIAS_LOOKUP: Map<string, "Space" | "Escape" | "Backspace" | "Return" | "Enter" | "Insert" | "Delete" | "Left" | "Up" | "Right" | "Down" | "PageUp" | "PageDown" | "Exclam" | "QuoteDbl" | "NumberSign" | "Dollar" | "Percent" | "Ampersand" | "Apostrophe" | "ParenLeft" | "ParenRight" | "Asterisk" | "Plus" | "Comma" | "Minus" | "Period" | "Slash" | "Colon" | "Semicolon" | "Less" | "Equal" | "Greater" | "Question" | "At" | "BracketLeft" | "Backslash" | "BracketRight" | "AsciiCircum" | "Underscore" | "QuoteLeft" | "BraceLeft" | "Bar" | "BraceRight" | "AsciiTilde">;
 //# sourceMappingURL=KeyCode.d.ts.map

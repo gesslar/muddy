@@ -71,6 +71,8 @@ void (async() => {
       .command("version")
       .description("Increment the semantic version (major, minor, or patch)")
       .addArgument(new Argument("<kind>").choices(["major", "minor", "patch"]))
+      .option("--package", "Also sync the version to a sibling package.json.", false)
+      .option("--no-warn", "Suppress the warning when --package finds nothing to sync.")
       .action(incrementVersion)
 
     versionCmd
@@ -82,6 +84,8 @@ void (async() => {
       .command("set")
       .description("Set the semantic version to an explicit x.y.z value")
       .addArgument(new Argument("<semver>"))
+      .option("--package", "Also sync the version to a sibling package.json.", false)
+      .option("--no-warn", "Suppress the warning when --package finds nothing to sync.")
       .action(setVersion)
 
     await program.parseAsync()
@@ -175,10 +179,12 @@ void (async() => {
       })
     }
 
-    async function incrementVersion(kind) {
+    async function incrementVersion(kind, options, command) {
       // Pull in root opts so global flags like --nerd surface to the catch below.
       Object.assign(opts, program.opts())
-      await Version.increment(kind, glog)
+      // --package / --no-warn may be declared on this command or its parent; merge both.
+      const merged = command.optsWithGlobals()
+      await Version.increment(kind, glog, merged.package, merged.warn)
     }
 
     async function currentVersion() {
@@ -186,9 +192,11 @@ void (async() => {
       await Version.current()
     }
 
-    async function setVersion(newVersion) {
+    async function setVersion(newVersion, options, command) {
       Object.assign(opts, program.opts())
-      await Version.set(newVersion, glog)
+      // --package / --no-warn may be declared on this command or its parent; merge both.
+      const merged = command.optsWithGlobals()
+      await Version.set(newVersion, glog, merged.package, merged.warn)
     }
   } catch(error) {
     Sass.from(error, "Starting muddy.").report(opts.nerd ?? false)

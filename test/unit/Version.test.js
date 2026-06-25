@@ -44,6 +44,23 @@ async function writeMfile(tmpDir, version) {
   await writeFile(path.join(tmpDir, "mfile"), body)
 }
 
+/**
+ * Writes a minimal package.json with the given version into tmpDir.
+ *
+ * @param {string} tmpDir - Target directory.
+ * @param {string} version - Version string to embed.
+ * @returns {Promise<void>}
+ */
+async function writePackageJson(tmpDir, version) {
+  const body = JSON.stringify({
+    name: "version-test",
+    version,
+    private: true
+  }, null, 2) + "\n"
+
+  await writeFile(path.join(tmpDir, "package.json"), body)
+}
+
 describe("version subcommand", () => {
   let tmpDir
 
@@ -127,6 +144,56 @@ describe("version subcommand", () => {
       const updated = JSON.parse(await readFile(mfile, "utf8"))
       assert.equal(updated.version, "1.2.4")
       assert.equal(updated.notes, "Legacy 1.2.3 is also referenced here.")
+    })
+
+    it("updates only the root version, not one nested in a non-flat field", async() => {
+      // The mfile isn't fully flat (e.g. `ignore` is an array, `dependencies`
+      // can carry versions), so the same root-only protection applies here too.
+      const mfile = path.join(tmpDir, "mfile")
+      const original = JSON.stringify({
+        package: "VersionTest",
+        dependencies: [{name: "foo", version: "9.9.9"}],
+        version: "1.2.3"
+      }, null, 2) + "\n"
+
+      await writeFile(mfile, original)
+
+      const {code} = await run(tmpDir, ["version", "patch"])
+      assert.equal(code, 0)
+
+      const updated = JSON.parse(await readFile(mfile, "utf8"))
+      assert.equal(updated.version, "1.2.4", "root version bumps")
+      assert.equal(updated.dependencies[0].version, "9.9.9", "nested dep version untouched")
+    })
+
+    it("rejects an mfile that isn't strict JSON (e.g. JSON5 comments)", async() => {
+      // The mfile must be plain JSON. A JSON5 comment is rejected with a clear
+      // error rather than tolerated, and the file is left untouched.
+      const mfile = path.join(tmpDir, "mfile")
+      const original = `{\n  // disabled config {\n  "package": "VersionTest",\n  "version": "1.2.3"\n}\n`
+
+      await writeFile(mfile, original)
+
+      const {code, stdout, stderr} = await run(tmpDir, ["version", "patch"])
+      assert.notEqual(code, 0, "should refuse a non-JSON mfile")
+      assert.match(stdout + stderr, /valid JSON/i, "should say the mfile isn't valid JSON")
+
+      const after = await readFile(mfile, "utf8")
+      assert.equal(after, original, "mfile should be untouched")
+    })
+
+    it("rejects a YAML mfile (must be JSON for bumping)", async() => {
+      const mfile = path.join(tmpDir, "mfile")
+      const original = `package: VersionTest\nversion: 1.2.3\nauthor: Test\n`
+
+      await writeFile(mfile, original)
+
+      const {code, stdout, stderr} = await run(tmpDir, ["version", "patch"])
+      assert.notEqual(code, 0, "should refuse a YAML mfile")
+      assert.match(stdout + stderr, /valid JSON/i)
+
+      const after = await readFile(mfile, "utf8")
+      assert.equal(after, original, "mfile should be untouched")
     })
   })
 
@@ -274,6 +341,159 @@ describe("version subcommand", () => {
     it("fails when no mfile exists in cwd", async() => {
       const {code} = await run(tmpDir, ["version", "set", "1.0.0"])
       assert.notEqual(code, 0)
+    })
+  })
+
+  describe("--package sync", () => {
+    it("syncs package.json when bumping with --package", async() => {
+      await writeMfile(tmpDir, "1.2.3")
+      await writePackageJson(tmpDir, "0.0.1")
+
+      const {code} = await run(tmpDir, ["version", "patch", "--package"])
+      assert.equal(code, 0)
+
+      const mfile = JSON.parse(await readFile(path.join(tmpDir, "mfile"), "utf8"))
+      const pkg = JSON.parse(await readFile(path.join(tmpDir, "package.json"), "utf8"))
+      assert.equal(mfile.version, "1.2.4")
+      assert.equal(pkg.version, "1.2.4", "package.json should match the mfile")
+    })
+
+    it("syncs package.json when setting with --package", async() => {
+      await writeMfile(tmpDir, "1.2.3")
+      await writePackageJson(tmpDir, "0.0.1")
+
+      const {code} = await run(tmpDir, ["version", "set", "4.5.6", "--package"])
+      assert.equal(code, 0)
+
+      const pkg = JSON.parse(await readFile(path.join(tmpDir, "package.json"), "utf8"))
+      assert.equal(pkg.version, "4.5.6")
+    })
+
+    it("leaves package.json untouched without --package", async() => {
+      await writeMfile(tmpDir, "1.2.3")
+      await writePackageJson(tmpDir, "0.0.1")
+
+      const {code} = await run(tmpDir, ["version", "patch"])
+      assert.equal(code, 0)
+
+      const pkg = JSON.parse(await readFile(path.join(tmpDir, "package.json"), "utf8"))
+      assert.equal(pkg.version, "0.0.1", "package.json should be left alone")
+    })
+
+    it("preserves package.json formatting", async() => {
+      await writeMfile(tmpDir, "1.2.3")
+
+      const pkgPath = path.join(tmpDir, "package.json")
+      const original = `{\n  "name":   "version-test",\n\t"version": "0.0.1",\n  "private": true\n}\n`
+
+      await writeFile(pkgPath, original)
+
+      const {code} = await run(tmpDir, ["version", "set", "9.9.9", "--package"])
+      assert.equal(code, 0)
+
+      const updated = await readFile(pkgPath, "utf8")
+      assert.equal(updated, original.replace("0.0.1", "9.9.9"))
+    })
+
+    it("warns but succeeds when --package is given and no package.json exists", async() => {
+      await writeMfile(tmpDir, "1.2.3")
+
+      const {code, stdout, stderr} = await run(tmpDir, ["version", "patch", "--package"])
+      assert.equal(code, 0, "mfile is still bumped, so the command succeeds")
+      assert.match(stdout + stderr, /no package\.json/i, "should warn about the missing package.json")
+
+      const mfile = JSON.parse(await readFile(path.join(tmpDir, "mfile"), "utf8"))
+      assert.equal(mfile.version, "1.2.4")
+    })
+
+    it("warns but still bumps the mfile when package.json is not valid JSON", async() => {
+      await writeMfile(tmpDir, "1.2.3")
+      await writeFile(path.join(tmpDir, "package.json"), "{ not: valid json, }")
+
+      const {code, stdout, stderr} = await run(tmpDir, ["version", "patch", "--package"])
+      assert.equal(code, 0, "the mfile bump still succeeds")
+      assert.match(stdout + stderr, /not valid JSON/i, "should warn the package.json is malformed")
+
+      const mfile = JSON.parse(await readFile(path.join(tmpDir, "mfile"), "utf8"))
+      assert.equal(mfile.version, "1.2.4")
+    })
+
+    it("warns when --package is given and package.json has no version key", async() => {
+      await writeMfile(tmpDir, "1.2.3")
+      await writeFile(path.join(tmpDir, "package.json"), JSON.stringify({name: "x"}, null, 2) + "\n")
+
+      const {code, stdout, stderr} = await run(tmpDir, ["version", "patch", "--package"])
+      assert.equal(code, 0)
+      assert.match(stdout + stderr, /no "version" key/i, "should warn about the missing version key")
+    })
+
+    it("updates only the root version, not a nested one that appears first", async() => {
+      await writeMfile(tmpDir, "1.2.3")
+
+      const pkgPath = path.join(tmpDir, "package.json")
+      const original = JSON.stringify({
+        config: {version: "9.9.9"},
+        name: "version-test",
+        version: "0.0.1"
+      }, null, 2) + "\n"
+
+      await writeFile(pkgPath, original)
+
+      const {code} = await run(tmpDir, ["version", "set", "4.5.6", "--package"])
+      assert.equal(code, 0)
+
+      const pkg = JSON.parse(await readFile(pkgPath, "utf8"))
+      assert.equal(pkg.version, "4.5.6", "root version should be synced")
+      assert.equal(pkg.config.version, "9.9.9", "nested version should be left alone")
+    })
+
+    it("updates only the root version when a nested one shares its value", async() => {
+      // Real-world ThresholdUI case: a nested version identical to the root and
+      // appearing first must not steal the rewrite.
+      await writeMfile(tmpDir, "10.0.0")
+
+      const pkgPath = path.join(tmpDir, "package.json")
+      const original = JSON.stringify({
+        name: "thresholdui",
+        somekey: {version: "10.0.0"},
+        version: "10.0.0"
+      }, null, 2) + "\n"
+
+      await writeFile(pkgPath, original)
+
+      const {code} = await run(tmpDir, ["version", "set", "11.0.0", "--package"])
+      assert.equal(code, 0)
+
+      const pkg = JSON.parse(await readFile(pkgPath, "utf8"))
+      assert.equal(pkg.version, "11.0.0", "root version should be bumped")
+      assert.equal(pkg.somekey.version, "10.0.0", "nested same-valued version stays put")
+    })
+
+    it("warns when only a nested version exists and no root version", async() => {
+      await writeMfile(tmpDir, "1.2.3")
+
+      const pkgPath = path.join(tmpDir, "package.json")
+      const original = JSON.stringify({
+        config: {version: "1.0.0"},
+        name: "version-test"
+      }, null, 2) + "\n"
+
+      await writeFile(pkgPath, original)
+
+      const {code, stdout, stderr} = await run(tmpDir, ["version", "patch", "--package"])
+      assert.equal(code, 0)
+      assert.match(stdout + stderr, /no "version" key/i, "should warn — no root version to sync")
+
+      const after = await readFile(pkgPath, "utf8")
+      assert.equal(after, original, "package.json should be untouched")
+    })
+
+    it("suppresses the missing-package.json warning with --no-warn", async() => {
+      await writeMfile(tmpDir, "1.2.3")
+
+      const {code, stdout, stderr} = await run(tmpDir, ["version", "patch", "--package", "--no-warn"])
+      assert.equal(code, 0)
+      assert.doesNotMatch(stdout + stderr, /no package\.json/i, "should stay quiet about the missing package.json")
     })
   })
 })

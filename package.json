@@ -45,7 +45,6 @@
     "test": "node --test",
     "test:watch": "node --test --watch",
     "test:unit": "node --test test/unit/**/*.test.js",
-    "muddy": "node src/cli.js work/ThresholdUI -n",
     "pr": "gt submit -p --ai",
     "patch": "npm version patch",
     "minor": "npm version minor",
