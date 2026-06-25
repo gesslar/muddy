@@ -7,6 +7,7 @@ import path from "node:path"
 import {create} from "xmlbuilder2"
 
 import Disk from "./Disk.js"
+import Lua from "./Lua.js"
 import {
   KEY_CODE_NAMES,
   KEY_MODIFIER_NAMES,
@@ -174,6 +175,13 @@ export default class Unpack {
    * Collects the child module nodes of a package or group element, tagging
    * each as a leaf or a folder.
    *
+   * xmlbuilder2's object format collapses siblings to per-tag keys
+   * (`{Script: [...], ScriptGroup: [...]}`) only when each tag forms a
+   * contiguous run — which is all muddy ever emits. Packages from muddler or a
+   * Mudlet export can interleave leaves and folders, and those parse into a
+   * mixed-content `"#"` array preserving document order. Handle both, so any
+   * package round-trips rather than silently extracting to nothing.
+   *
    * @private
    * @param {object} node - The parent package/group element
    * @param {string} single - The singular module type (e.g. "script")
@@ -185,10 +193,20 @@ export default class Unpack {
 
     const leafTag = Util.capitalize(single)
     const groupTag = `${leafTag}Group`
+    const tag = (entry, isFolder) =>
+      arr(entry).map(n => ({node: n, isFolder}))
+
+    // Mixed-content form: each "#" entry is one element, in document order.
+    if(Array.isArray(node["#"])) {
+      return node["#"].flatMap(entry => [
+        ...tag(entry[leafTag], false),
+        ...tag(entry[groupTag], true),
+      ])
+    }
 
     return [
-      ...arr(node[leafTag]).map(n => ({node: n, isFolder: false})),
-      ...arr(node[groupTag]).map(n => ({node: n, isFolder: true})),
+      ...tag(node[leafTag], false),
+      ...tag(node[groupTag], true),
     ]
   }
 
@@ -411,10 +429,15 @@ export default class Unpack {
    */
   #reconstructResources = async(xmlFile, srcDirectory) => {
     const found = await this.#temp.glob("**/*")
+
+    // The package XML lives at the archive root, so exclude it by relative path,
+    // not basename — otherwise a resource in a subdirectory sharing that
+    // filename (e.g. vendor/<Package>.xml) would be wrongly dropped.
+    const xmlRelative = xmlFile.relativeTo(this.#temp)
     const resources = found.files.filter(file => {
       const relative = file.relativeTo(this.#temp)
 
-      return file.name !== xmlFile.name
+      return relative !== xmlRelative
         && relative !== "config.lua"
         && !relative.startsWith(".mudlet/")
     })
@@ -520,10 +543,14 @@ export default class Unpack {
     // underscores, leading digits stripped (matches Generate's #luaSafe).
     const pkgId = packageName.replaceAll(/[^\w]/g, "_").replace(/^\d+/, "")
 
+    // @PKGNAME@ is cosmetic (comments); @PKGID@ is a Lua identifier. The values
+    // that land in Lua string positions (@NAME@, @PATH@) go through
+    // Lua.longString so any character — including `]]` in a path — embeds safely.
     const content = template
       .replaceAll("@PKGNAME@", packageName)
       .replaceAll("@PKGID@", pkgId)
-      .replaceAll("@PROJECTPATH@", projectDirectory.path)
+      .replaceAll("@NAME@", Lua.longString(packageName))
+      .replaceAll("@PATH@", Lua.longString(projectDirectory.path))
 
     const helperFile = projectDirectory.getFile(`${packageName}.MuddyHelper.lua`)
     await helperFile.write(content)
@@ -532,7 +559,10 @@ export default class Unpack {
 
   /**
    * Parses a config.lua file of `key = [[value]]` long-bracket assignments
-   * into a plain object.
+   * into a plain object. Handles any bracket level (`[[…]]`, `[=[…]=]`, …) so a
+   * value containing `]]` round-trips — the level captured in group 2 is matched
+   * by the backreference in the closing delimiter. Mirrors the build's
+   * `#luaLongString`.
    *
    * @private
    * @param {string} content - The config.lua content
@@ -540,11 +570,11 @@ export default class Unpack {
    */
   #parseConfig = content => {
     const config = {}
-    const pattern = /(\w+)\s*=\s*\[\[([\s\S]*?)\]\]/g
+    const pattern = /(\w+)\s*=\s*\[(=*)\[([\s\S]*?)\]\2\]/g
 
     let match
     while((match = pattern.exec(content)) !== null)
-      config[match[1]] = match[2]
+      config[match[1]] = match[3]
 
     return config
   }

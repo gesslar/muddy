@@ -5,17 +5,18 @@
 -- project root (the folder you run `muddy` from); it points at where this
 -- package was unpacked — change it if you move the project.
 
-local path = [[@PROJECTPATH@]]
+local name = @NAME@
+local path = @PATH@
 
 @PKGID@Helper = @PKGID@Helper or {watcher = nil}
 
 -- Drop stale require()'d modules on uninstall so a reinstall runs fresh code
 -- instead of cached copies left behind in package.loaded.
 function @PKGID@Helper:killCache(pkg)
-  for name in pairs(package.loaded) do
-    if name:find(pkg) then
-      package.loaded[name] = nil
-      debugc(f "Uncached {name}")
+  for mod in pairs(package.loaded) do
+    if mod:find(pkg) then
+      package.loaded[mod] = nil
+      debugc(f "Uncached {mod}")
     end
   end
 end
@@ -29,10 +30,10 @@ function @PKGID@Helper:setup()
   self.watcher = Muddy:new({
     path = path,
     watch = true,
-    postremove = f "@PKGID@Helper:killCache('@PKGNAME@')",
+    postremove = function() @PKGID@Helper:killCache(name) end,
   })
 
-  debugc(f "Watching @PKGNAME@")
+  debugc(f "Watching " .. name)
 end
 
 @PKGID@Helper:setup()

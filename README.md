@@ -147,9 +147,10 @@ muddy unpack MyPackage.mpackage
 muddy unpack MyPackage.mpackage some/where
 ```
 
-The round-trip is faithful: rebuild an unpacked project and you get the same
-MudletPackage XML back, byte for byte — pattern types, key chords, trigger
-highlights, event handlers, and folder hierarchy all reconstructed.
+It reconstructs the project the way you'd expect — definitions, scripts,
+load-order within each list, folders, resources, and metadata all come back —
+including pattern types, key chords, trigger highlights, and event handlers.
+Edit and rebuild like any muddy project.
 
 Two conveniences come along for the ride:
 

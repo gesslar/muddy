@@ -8,6 +8,7 @@ import path from "node:path"
 import {create, fragment} from "xmlbuilder2"
 
 import Disk from "./Disk.js"
+import Lua from "./Lua.js"
 import Type from "./Type.js"
 import Mfile from "./modules/Mfile.js"
 
@@ -556,12 +557,20 @@ export default class Muddy {
     const {mfile, workDirectory} = ctx
 
     const out = []
-    for(const [k,v] of Mfile.MFILE_TO_CONFIG.entries())
-      out.push(`${v} = [[${mfile[k]}]]`)
+    for(const [k,v] of Mfile.MFILE_TO_CONFIG.entries()) {
+      const value = mfile[k]
+
+      // Optional fields that are absent or empty are omitted entirely — never
+      // serialized as the literal string "undefined" (or an empty value).
+      if(value === undefined || value === null || value === "")
+        continue
+
+      out.push(`${v} = ${Lua.longString(String(value))}`)
+    }
 
     // This isn't sourced anywhere, so we just make it up.
     const now = this.#iso()
-    out.push(`created = [[${now}]]`)
+    out.push(`created = ${Lua.longString(now)}`)
     const configFile = workDirectory.getFile("config.lua")
     await configFile.write(out.join("\n"))
 

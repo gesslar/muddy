@@ -9,6 +9,7 @@ import os from "node:os"
 import {fileURLToPath} from "node:url"
 
 import {DirectoryObject, FileObject} from "@gesslar/toolkit"
+import AdmZip from "adm-zip"
 
 import Unpack from "../../src/Unpack.js"
 
@@ -215,6 +216,152 @@ describe("unpack command", () => {
     })
   })
 
+  describe("foreign packages (interleaved siblings)", () => {
+    // Muddy emits all folders, then all leaves (contiguous runs), but a package
+    // from muddler or a Mudlet export can interleave leaf/group siblings. Those
+    // parse into xmlbuilder2's mixed-content "#" form; make sure modules are
+    // still extracted (not silently dropped) and leaf load-order is preserved.
+    let out
+
+    before(async() => {
+      const dir = path.join(tmpDir, "foreign-src")
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE MudletPackage>
+<MudletPackage version="1.001">
+  <ScriptPackage>
+    <Script isActive="yes" isFolder="no">
+      <name>Zebra</name><script>z()</script><packageName/><eventHandlerList/>
+    </Script>
+    <ScriptGroup isActive="yes" isFolder="yes">
+      <name>MidFolder</name><script></script><packageName/>
+      <Script isActive="yes" isFolder="no">
+        <name>Inner</name><script>i()</script><packageName/><eventHandlerList/>
+      </Script>
+    </ScriptGroup>
+    <Script isActive="yes" isFolder="no">
+      <name>Alpha</name><script>a()</script><packageName/><eventHandlerList/>
+    </Script>
+  </ScriptPackage>
+</MudletPackage>`
+      await write(path.join(dir, "Foreign.xml"), xml)
+      await write(path.join(dir, "config.lua"), "mpackage = [[Foreign]]\n")
+
+      const zip = new AdmZip()
+      zip.addLocalFolder(dir)
+      const mpackage = path.join(tmpDir, "Foreign.mpackage")
+      zip.writeZip(mpackage)
+
+      out = path.join(tmpDir, "foreign-out")
+      const res = await unpack(mpackage, out, "--no-helper")
+      assert.equal(res.code, 0, `unpack failed: ${res.stderr}`)
+    })
+
+    it("extracts interleaved leaves and folders (does not drop them)", async() => {
+      assert.ok(await exists(path.join(out, "src", "scripts", "scripts.json")))
+      assert.ok(await exists(path.join(out, "src", "scripts", "MidFolder", "scripts.json")))
+    })
+
+    it("preserves leaf load-order across the interleaved folder", async() => {
+      const defs = await readJSON(path.join(out, "src", "scripts", "scripts.json"))
+      assert.deepEqual(defs.map(e => e.name), ["Zebra", "Alpha"])
+
+      const inner = await readJSON(path.join(out, "src", "scripts", "MidFolder", "scripts.json"))
+      assert.deepEqual(inner.map(e => e.name), ["Inner"])
+    })
+  })
+
+  describe("resource sharing the package XML's filename", () => {
+    // The package XML is excluded by relative path, not basename, so a resource
+    // in a subdirectory that happens to share the XML's filename is kept.
+    let out
+
+    before(async() => {
+      const dir = path.join(tmpDir, "collide-src")
+      const xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        + "<!DOCTYPE MudletPackage>\n<MudletPackage version=\"1.001\">\n"
+        + "<ScriptPackage/>\n</MudletPackage>"
+      await write(path.join(dir, "Coll.xml"), xml)
+      await write(path.join(dir, "config.lua"), "mpackage = [[Coll]]\n")
+      // a resource whose basename collides with the root package XML
+      await write(path.join(dir, "vendor", "Coll.xml"), "<keep>me</keep>")
+
+      const zip = new AdmZip()
+      zip.addLocalFolder(dir)
+      const mpackage = path.join(tmpDir, "Coll.mpackage")
+      zip.writeZip(mpackage)
+
+      out = path.join(tmpDir, "collide-out")
+      const res = await unpack(mpackage, out, "--no-helper")
+      assert.equal(res.code, 0, `unpack failed: ${res.stderr}`)
+    })
+
+    it("keeps the same-named resource in its subdirectory", async() => {
+      const kept = path.join(out, "src", "resources", "vendor", "Coll.xml")
+      assert.ok(await exists(kept), "same-named resource should be kept")
+      assert.equal(await readFile(kept, "utf8"), "<keep>me</keep>")
+    })
+  })
+
+  describe("config.lua values containing ]]", () => {
+    // A description with ]] (e.g. a README showing Lua long strings) must not
+    // truncate the field or emit invalid Lua. Build picks a safe bracket level
+    // (#luaLongString) and unpack matches it (#parseConfig).
+    let out
+    const DESC = "See [[long]] strings and a bare ]] in your docs"
+
+    before(async() => {
+      const dir = path.join(tmpDir, "brackets-src")
+      await write(path.join(dir, "mfile"), JSON.stringify({
+        package: "Brk", version: "1.0.0", author: "t", description: DESC,
+      }, null, 2) + "\n")
+      await write(path.join(dir, "src", "scripts", "scripts.json"), "[{\"name\":\"S\"}]\n")
+      await write(path.join(dir, "src", "scripts", "S.lua"), "x=1\n")
+
+      const b = await build(dir)
+      assert.equal(b.code, 0, `build failed: ${b.stderr}`)
+
+      out = path.join(tmpDir, "brackets-out")
+      const u = await unpack(path.join(dir, "build", "Brk.mpackage"), out, "--no-helper")
+      assert.equal(u.code, 0, `unpack failed: ${u.stderr}`)
+    })
+
+    it("round-trips a description containing ]] without truncation", async() => {
+      const mfile = await readJSON(path.join(out, "mfile"))
+      assert.equal(mfile.description, DESC)
+    })
+  })
+
+  describe("missing optional mfile fields", () => {
+    // Absent optional fields (icon, title, description) must be omitted from
+    // config.lua, not serialized as the literal string "undefined".
+    let out
+
+    before(async() => {
+      const dir = path.join(tmpDir, "minimal-src")
+      await write(path.join(dir, "mfile"), JSON.stringify({
+        package: "Min", version: "2.0.0", author: "t",
+      }, null, 2) + "\n")
+      await write(path.join(dir, "src", "scripts", "scripts.json"), "[{\"name\":\"S\"}]\n")
+      await write(path.join(dir, "src", "scripts", "S.lua"), "x=1\n")
+
+      const b = await build(dir)
+      assert.equal(b.code, 0, `build failed: ${b.stderr}`)
+
+      out = path.join(tmpDir, "minimal-out")
+      const u = await unpack(path.join(dir, "build", "Min.mpackage"), out, "--no-helper")
+      assert.equal(u.code, 0, `unpack failed: ${u.stderr}`)
+    })
+
+    it("are omitted from the rebuilt mfile (no \"undefined\")", async() => {
+      const mfile = await readJSON(path.join(out, "mfile"))
+      assert.deepEqual(
+        Object.keys(mfile).sort(),
+        ["author", "outputFile", "package", "version"]
+      )
+      assert.ok(!Object.values(mfile).includes("undefined"))
+    })
+  })
+
   describe("round-trip", () => {
     let project
     let out
@@ -323,7 +470,8 @@ describe("unpack command", () => {
       const content = await readFile(helper, "utf8")
       assert.match(content, /RTHelper = RTHelper or/, "global named from package")
       assert.match(content, /Muddy:new\(/, "wires up the watcher")
-      assert.match(content, /killCache\('RT'\)/, "postremove targets the package")
+      assert.match(content, /local name = \[\[RT\]\]/, "package name wrapped safely")
+      assert.match(content, /killCache\(name\)/, "postremove targets the package")
       assert.ok(content.includes(out), "points the watcher at the unpacked path")
     })
 
@@ -354,7 +502,11 @@ describe("unpack command", () => {
       assert.ok(!("description" in mfile), "description should not be in mfile")
     })
 
-    it("rebuilds to a byte-identical MudletPackage XML (round-trip invariant)", async() => {
+    // Regression guard for the unpack→rebuild mapping on a muddy-built package:
+    // if the reverse mapping drifts, the rebuilt XML diverges. Not a promise we
+    // make about arbitrary packages — foreign ones normalize (see the
+    // foreign-packages tests).
+    it("a muddy-built project rebuilds cleanly after unpacking", async() => {
       const rebuild = await build(out)
       assert.equal(rebuild.code, 0, `rebuild failed: ${rebuild.stderr}`)
 
