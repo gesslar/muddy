@@ -166,6 +166,22 @@ describe("version subcommand", () => {
       assert.equal(updated.dependencies[0].version, "9.9.9", "nested dep version untouched")
     })
 
+    it("matches an escaped version key the way JSON.parse decodes it", async() => {
+      // Pathological but valid: "version" is the key "version". JSON.parse
+      // decodes it, so the scanner must too — otherwise the bump can't find it.
+      const mfile = path.join(tmpDir, "mfile")
+      const original = `{\n  "package": "VersionTest",\n  "\\u0076ersion": "1.2.3"\n}\n`
+
+      await writeFile(mfile, original)
+
+      const {code} = await run(tmpDir, ["version", "patch"])
+      assert.equal(code, 0, "should resolve the escaped key to 'version'")
+
+      const updated = await readFile(mfile, "utf8")
+      assert.equal(updated, original.replace("1.2.3", "1.2.4"), "key spelling preserved, value bumped")
+      assert.equal(JSON.parse(updated).version, "1.2.4")
+    })
+
     it("rejects an mfile that isn't strict JSON (e.g. JSON5 comments)", async() => {
       // The mfile must be plain JSON. A JSON5 comment is rejected with a clear
       // error rather than tolerated, and the file is left untouched.

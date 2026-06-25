@@ -42,11 +42,14 @@ export default class Version {
    * Nesting depth is tracked across objects and arrays so a "version" buried
    * inside another structure (e.g. a config block in a package.json) is skipped
    * — only a direct child of the root object counts, regardless of where it sits
-   * or whether a nested one shares its value. Strings are scanned with
+   * or whether a nested one shares its value. Strings are walked with
    * backslash-escape awareness so quotes inside values don't derail the count.
    *
    * Callers validate the text with JSON.parse first, so the input is guaranteed
-   * to be strict JSON — no comments to skip, no trailing-comma surprises.
+   * to be strict JSON: double-quoted strings only, no comments, no trailing
+   * commas. Candidate keys are decoded via JSON.parse rather than compared as raw
+   * text, so an escaped spelling of the key (e.g. "version", which JSON
+   * reads as "version") is matched the same way the parser sees it.
    *
    * @param {string} raw - The file's raw text (already validated as JSON).
    * @returns {{start: number, end: number}|null} The [start, end) span of the
@@ -76,34 +79,25 @@ export default class Version {
         continue
       }
 
-      if(ch !== "\"" && ch !== "'") {
+      if(ch !== "\"") {
         i++
 
         continue
       }
 
-      // Read a complete string token, honouring backslash escapes.
-      const quote = ch
-      let token = ""
+      // Walk to the closing quote, skipping escaped characters. Track the span
+      // so the token can be decoded by the JSON engine if it turns out to be a key.
+      const tokenStart = i
 
       i++
 
-      while(i < length && raw[i] !== quote) {
-        if(raw[i] === "\\") {
-          token += raw[i + 1] ?? ""
-          i += 2
-
-          continue
-        }
-
-        token += raw[i]
-        i++
+      while(i < length && raw[i] !== "\"") {
+        i += raw[i] === "\\" ? 2 : 1
       }
 
       i++ // step past the closing quote
 
-      // Only a depth-1 "version" key — i.e. one followed by a colon — qualifies.
-      if(depth !== 1 || token !== "version")
+      if(depth !== 1)
         continue
 
       let j = i
@@ -111,7 +105,9 @@ export default class Version {
       while(j < length && /\s/.test(raw[j]))
         j++
 
-      if(raw[j] !== ":")
+      // A string followed by ":" is a key. Decode it the way JSON.parse does
+      // before comparing, so escaped spellings of "version" still match.
+      if(raw[j] !== ":" || JSON.parse(raw.slice(tokenStart, i)) !== "version")
         continue
 
       j++
@@ -119,22 +115,14 @@ export default class Version {
       while(j < length && /\s/.test(raw[j]))
         j++
 
-      const valueQuote = raw[j]
-
-      if(valueQuote !== "\"" && valueQuote !== "'")
+      if(raw[j] !== "\"")
         return null
 
       const start = j + 1
       let k = start
 
-      while(k < length && raw[k] !== valueQuote) {
-        if(raw[k] === "\\") {
-          k += 2
-
-          continue
-        }
-
-        k++
+      while(k < length && raw[k] !== "\"") {
+        k += raw[k] === "\\" ? 2 : 1
       }
 
       return {start, end: k}
