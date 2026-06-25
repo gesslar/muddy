@@ -55,6 +55,13 @@ export const KEY_CODES = Object.freeze({
 })
 
 /**
+ * Qt::Key_unknown — the key code Mudlet stores for an unbound key (TKey.h
+ * `mKeyCode` default). Used both when auto-wrapping folder keys and when
+ * round-tripping them back out.
+ */
+export const KEY_UNKNOWN = 0x01FFFFFF
+
+/**
  * Friendly aliases + typed-symbol shortcuts that resolve to a canonical
  * Qt::Key name. Lookup is case-insensitive so "esc", "Esc", "ESCAPE" and
  * "Escape" all land on the same bucket.
@@ -129,10 +136,34 @@ export const KEY_MODIFIERS = Object.freeze({
   KEYPAD: 0x20000000,
 })
 
+/**
+ * Canonical modifier order for rendering a chord — each Qt modifier bit paired
+ * with the single label muddy emits, in the order QKeySequence::toString prints
+ * them. The reverse of the synonym-laden {@link KEY_MODIFIERS} lookup; bits are
+ * sourced from it so there is one place to change a value.
+ *
+ * @type {Array<[number, string]>}
+ */
+export const KEY_MODIFIER_NAMES = Object.freeze([
+  [KEY_MODIFIERS.CTRL, "Ctrl"],
+  [KEY_MODIFIERS.ALT, "Alt"],
+  [KEY_MODIFIERS.SHIFT, "Shift"],
+  [KEY_MODIFIERS.META, "Meta"],
+  [KEY_MODIFIERS.KEYPAD, "Keypad"],
+])
+
 // Case-insensitive lookup tables. These mirror the frozen maps above
 // but key off upper-case strings so token comparison is one operation.
 export const KEY_CODE_LOOKUP = new Map(
   Object.entries(KEY_CODES).map(([k, v]) => [k.toUpperCase(), v])
+)
+
+/**
+ * Reverse of {@link KEY_CODES}: Qt key value -> canonical key name. Used to
+ * turn a stored key code back into the chord string a muddy author writes.
+ */
+export const KEY_CODE_NAMES = new Map(
+  Object.entries(KEY_CODES).map(([name, code]) => [code, name])
 )
 
 export const KEY_ALIAS_LOOKUP = new Map(

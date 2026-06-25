@@ -14,7 +14,8 @@
   "type": "module",
   "files": [
     "LICENSE.txt",
-    "src/**/*.js"
+    "src/**/*.js",
+    "src/templates/*.lua"
   ],
   "keywords": [
     "mud",

@@ -131,6 +131,43 @@ The mfile is rewritten in place via a targeted regex, so existing formatting
 (quote style, spacing, key order) is preserved. No git commit or tag is
 created — that's left entirely up to you.
 
+### Unpack an mpackage
+
+**muddy** also runs in reverse: hand it a built `.mpackage` and it explodes it
+back into an editable muddy project — `src/<type>/` definitions, their `.lua`
+files, nested folders, resources, and a reconstructed `mfile`. Muddy, but
+backwards. (Yes, a bit like [DeMuddler](https://github.com/Edru2/DeMuddler) —
+imitation is the sincerest form, and all that.)
+
+```shell
+# Unpack into ./MyPackage (named after the .mpackage)
+muddy unpack MyPackage.mpackage
+
+# ...or into a directory you name
+muddy unpack MyPackage.mpackage some/where
+```
+
+The round-trip is faithful: rebuild an unpacked project and you get the same
+MudletPackage XML back, byte for byte — pattern types, key chords, trigger
+highlights, event handlers, and folder hierarchy all reconstructed.
+
+Two conveniences come along for the ride:
+
+- **A ready-to-go helper.** By default, unpack drops a
+  `<Package>.MuddyHelper.lua` beside your `mfile`, pre-wired to the directory you
+  just unpacked into. Plunk it into Mudlet (below the [Muddy](#muddy-the-mpackage)
+  package in the Scripts tree) and you're hot-reloading immediately — no
+  hand-rolled watcher required. Pass `--no-helper` to skip it. _If you don't
+  know what I'm talking about, maybe it's because you haven't read ahead. But
+  everything will be okay, because once you've read the next section, you can
+  reverse engineer your brain to complete understanding. This is by design. Are
+  you wanting more? There's more._
+- **Sensible description handling.** The build folds `mfile.description` (or, if
+  it's empty, your `README.md`) into the package, and the two are
+  indistinguishable afterwards. By default the description is restored verbatim
+  into `mfile`; if it's really docs, pass `--readme` to write it to `README.md`
+  instead. By intent, never by guesswork.
+
 ## Muddy the mpackage
 
 You can also hot-reload your packages in Mudlet by installing the Muddy

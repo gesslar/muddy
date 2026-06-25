@@ -7,6 +7,7 @@ import os from "node:os"
 import path from "node:path"
 import {create, fragment} from "xmlbuilder2"
 
+import Disk from "./Disk.js"
 import Type from "./Type.js"
 import Mfile from "./modules/Mfile.js"
 
@@ -726,7 +727,7 @@ export default class Muddy {
    * @returns {Promise<unknown>} The context object
    */
   #cleanUp = async ctx => {
-    await this.#recursiveDelete(this.#temp, true)
+    await Disk.deleteRecursive(this.#temp, true)
 
     return ctx
   }
@@ -754,32 +755,6 @@ export default class Muddy {
     }
 
     return object
-  }
-
-  /**
-   * Recursively deletes a directory and its content.
-   *
-   * @private
-   * @param {DirectoryObject} dir - The directory to delete
-   * @param {boolean} [includeSelf=false] - Whether to delete the directory itself
-   * @returns {Promise<void>}
-   */
-  #recursiveDelete = async(dir, includeSelf=false) => {
-    const {files, directories} = await dir.read()
-
-    await Promised.settle(
-      [files, directories].flat().map(async e => {
-        if(e.isFile) {
-          await e.delete()
-        } else if(e.isDirectory) {
-          await this.#recursiveDelete(e)
-
-          await e.delete()
-        }
-      })
-    )
-
-    includeSelf && await dir.delete()
   }
 
   /**
