@@ -1,27 +1,19 @@
 # Muddy (the Mudlet package)
 
-This is the in-Mudlet companion to the [**muddy**](https://github.com/gesslar/muddy)
-CLI. The CLI builds your `.mpackage`; this package _hot-reloads_ it into a
-running Mudlet so you don't have to keep right-clicking → uninstall → reinstall
-like an animal.
+This is the in-Mudlet companion to the [**muddy**](https://github.com/gesslar/muddy) CLI. The CLI builds your `.mpackage`; this package _hot-reloads_ it into a running Mudlet so you don't have to keep right-clicking → uninstall → reinstall like an animal.
 
-Install `Muddy.mpackage` in Mudlet and you get a global `Muddy` table. That's
-the whole public surface. You wire it up from a **helper package** — a little
-script of your own that tells Muddy which projects to watch.
+Install `Muddy.mpackage` in Mudlet and you get a global `Muddy` table. That's the whole public surface. You wire it up from a **helper package** — a little script of your own that tells Muddy which projects to watch.
 
 ## The gist
 
 1. Run the CLI in watch mode: `muddy . --watch`. It rebuilds whenever you save.
-2. A `Muddy` watcher in Mudlet notices the rebuild and reinstalls the package
-   for you. Your edits are live.
+2. A `Muddy` watcher in Mudlet notices the rebuild and reinstalls the package for you. Your edits are live.
 
-That's it. The watcher just needs to know your **project root** — the folder
-you run `muddy` from — and it figures out the rest.
+That's it. The watcher just needs to know your **project root** — the folder you run `muddy` from — and it figures out the rest.
 
 ## Quick start
 
-A helper is just a script that points Muddy at your projects. Drop this in a
-Mudlet script and you're off:
+A helper is just a script that points Muddy at your projects. Drop this in a Mudlet script and you're off:
 
 ```lua
 local base = "/home/you/projects/"
@@ -48,13 +40,9 @@ end
 MyHelper:setup()
 ```
 
-Edit a file in any of those projects, let the CLI rebuild, and it reinstalls in
-Mudlet. Add or remove projects by editing the list. Done.
+Edit a file in any of those projects, let the CLI rebuild, and it reinstalls in Mudlet. Add or remove projects by editing the list. Done.
 
-> **Order matters.** Your helper has to sit _below_ the Muddy package in
-> Mudlet's Scripts editor. Scripts run top to bottom, so if your helper is
-> above Muddy, the global `Muddy` doesn't exist yet when it runs (the
-> `if not Muddy then return end` guard just bails). Drag it underneath.
+> **Order matters.** Your helper has to sit _below_ the Muddy package in Mudlet's Scripts editor. Scripts run top to bottom, so if your helper is above Muddy, the global `Muddy` doesn't exist yet when it runs (the `if not Muddy then return end` guard just bails). Drag it underneath.
 
 Watching a single project? You don't even need the loop:
 
@@ -73,14 +61,11 @@ Muddy:new({path = "/home/you/projects/MyPackage", watch = true})
 | `preinstall`  | Runs right before the new package installs.              |
 | `postinstall` | Runs after the new package installs.                     |
 
-The four hooks are optional and each can be a function or a string of Lua. Got
-an instance? `watcher:stop()` and `watcher:start()` pause and resume it.
+The four hooks are optional and each can be a function or a string of Lua. Got an instance? `watcher:stop()` and `watcher:start()` pause and resume it.
 
 ## Cleaning up after yourself
 
-Reinstalling a package doesn't clear out Lua state it left in `package.loaded`.
-If your packages `require()` their own modules, the stale copies hang around
-and the fresh install runs on top of the old cached code.
+Reinstalling a package doesn't clear out Lua state it left in `package.loaded`. If your packages `require()` their own modules, the stale copies hang around and the fresh install runs on top of the old cached code.
 
 The fix is a `postremove` hook that uncaches anything matching the package name:
 
@@ -104,11 +89,8 @@ Muddy:new({
 
 ## How extra do you want to get
 
-The quick start is deliberately bare. A "real" helper grows the obvious extras:
-an `active` flag per project so you can park ones you're not touching, fancier
-cache-killing, a little reload-the-helper-itself dance after you edit the list.
+The quick start is deliberately bare. A "real" helper grows the obvious extras: an `active` flag per project so you can park ones you're not touching, fancier cache-killing, a little reload-the-helper-itself dance after you edit the list.
 
 ## License
 
-Unlike muddy, the Muddy companion package is licensed as MIT because it derives
-chunks from muddler's mpackage.
+Unlike muddy, the Muddy companion package is licensed as MIT because it derives chunks from muddler's mpackage.

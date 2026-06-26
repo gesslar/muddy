@@ -270,6 +270,69 @@ describe("unpack command", () => {
     })
   })
 
+  describe("folder whose own name lands in mixed content", () => {
+    // When a folder holds non-contiguous leaf/group runs (a Mudlet export of a
+    // folder containing both scripts and subfolders — e.g. Script, ScriptGroup,
+    // Script), xmlbuilder2 pushes the folder's OWN <name> into the mixed-content
+    // "#" array instead of a direct key. A naive node.name then reads "", and
+    // unpack crashes building a directory with an empty name. The folder name
+    // must still resolve, and its leaves and subfolders survive. (Regression
+    // from a real export — EleUI2's "UI" group has exactly this shape.)
+    let out
+
+    before(async() => {
+      const dir = path.join(tmpDir, "mixedname-src")
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE MudletPackage>
+<MudletPackage version="1.001">
+  <ScriptPackage>
+    <ScriptGroup isActive="yes" isFolder="yes">
+      <name>Outer</name><script></script><packageName/>
+      <Script isActive="yes" isFolder="no">
+        <name>First</name><script>f()</script><packageName/><eventHandlerList/>
+      </Script>
+      <ScriptGroup isActive="yes" isFolder="yes">
+        <name>Nested</name><script></script><packageName/>
+        <Script isActive="yes" isFolder="no">
+          <name>Deep</name><script>d()</script><packageName/><eventHandlerList/>
+        </Script>
+      </ScriptGroup>
+      <Script isActive="yes" isFolder="no">
+        <name>Second</name><script>s()</script><packageName/><eventHandlerList/>
+      </Script>
+    </ScriptGroup>
+  </ScriptPackage>
+</MudletPackage>`
+      await write(path.join(dir, "Mixed.xml"), xml)
+      await write(path.join(dir, "config.lua"), "mpackage = [[Mixed]]\n")
+
+      const zip = new AdmZip()
+      zip.addLocalFolder(dir)
+      const mpackage = path.join(tmpDir, "Mixed.mpackage")
+      zip.writeZip(mpackage)
+
+      out = path.join(tmpDir, "mixedname-out")
+      const res = await unpack(mpackage, out, "--no-helper")
+      assert.equal(res.code, 0, `unpack failed: ${res.stderr}`)
+    })
+
+    it("resolves the folder name (does not unpack to an empty dir name)", async() => {
+      assert.ok(await exists(path.join(out, "src", "scripts", "Outer", "scripts.json")))
+    })
+
+    it("keeps the folder's leaves, in document order across the subfolder", async() => {
+      const defs = await readJSON(path.join(out, "src", "scripts", "Outer", "scripts.json"))
+      assert.deepEqual(defs.map(e => e.name), ["First", "Second"])
+    })
+
+    it("recurses into the nested subfolder", async() => {
+      const inner = await readJSON(
+        path.join(out, "src", "scripts", "Outer", "Nested", "scripts.json")
+      )
+      assert.deepEqual(inner.map(e => e.name), ["Deep"])
+    })
+  })
+
   describe("resource sharing the package XML's filename", () => {
     // The package XML is excluded by relative path, not basename, so a resource
     // in a subdirectory that happens to share the XML's filename is kept.
