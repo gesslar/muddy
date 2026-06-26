@@ -35,6 +35,40 @@ let /** @type {Glog} */ glog
 const text = value => typeof value === "string" ? value : ""
 
 /**
+ * Reads a child element's text by tag, falling back into xmlbuilder2's
+ * mixed-content `"#"` array.
+ *
+ * When an element interleaves leaf and group children — e.g. a Mudlet export
+ * of a folder that holds both scripts and subfolders — its own scalar fields,
+ * `<name>` included, are pushed into `"#"` alongside the children rather than
+ * surfacing as direct keys. A plain `node.name` then reads `undefined`, and the
+ * folder unpacks to an empty directory name. Look in `"#"` too so the name
+ * survives. Mirrors how {@link Unpack.#childrenOf} reads the same form.
+ *
+ * @param {unknown} node - The parsed element
+ * @param {string} key - The child tag to read (e.g. "name")
+ * @returns {string} The element text, or "" when absent
+ */
+const field = (node, key) => {
+  if(!node || typeof node !== "object")
+    return ""
+
+  if(key in node)
+    return text(node[key])
+
+  if(Array.isArray(node["#"])) {
+    const hit = node["#"].find(
+      entry => entry && typeof entry === "object" && key in entry
+    )
+
+    if(hit)
+      return text(hit[key])
+  }
+
+  return ""
+}
+
+/**
  * Normalizes an xmlbuilder2 object-format value into an array. A single child
  * parses to an object, multiple children to an array; this collapses both.
  *
@@ -227,7 +261,7 @@ export default class Unpack {
 
     for(const {node, isFolder} of nodes) {
       if(isFolder) {
-        const name = text(node.name)
+        const name = field(node, "name")
         const childNodes = this.#childrenOf(node, single)
 
         await this.#writeNodes(
