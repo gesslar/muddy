@@ -1,5 +1,6 @@
 ---@type Glu
 local glu = require("__PKGNAME__/vendor/Glu-single")("__PKGNAME__")
+local requiredVersion = "4.20.0"
 
 __PKGNAME__ = __PKGNAME__ or {
   path = getMudletHomeDir(),
@@ -9,14 +10,29 @@ __PKGNAME__ = __PKGNAME__ or {
 
 ---@param cons table Constructor arguments.
 function __PKGNAME__:new(cons)
+  local version = getMudletVersion("string")
+  if glu.version.compare(version, requiredVersion) == -1 then
+    debugc(
+      "This __PKGNAME__ package requires at least version " .. requiredVersion
+    )
+
+    return
+  end
+
   local ok, result
 
   ok, result = glu.table.associative(cons)
-  if not ok or result == false then
-    debugc(
-      "Error in constructor options passed to __PKGNAME__, or constructor " ..
-      "options is not a table: " .. result
-    )
+  if not ok then
+    if result == false then
+      debugc(
+        "Error in constructor options passed to __PKGNAME__, or constructor " ..
+        "options is not a table."
+      )
+    else
+      debugc(
+        "Error in constructor options passed to __PKGNAME__ " .. tostring(result)
+      )
+    end
 
     return
   end
@@ -79,7 +95,7 @@ local function execute(item)
       f, e = loadstring(item)
     end
     if not f then
-      debugc("Unable to convert string to function for execution in Muddler hook:" .. e)
+      debugc("Unable to convert string to function for execution in Muddy hook:" .. e)
       return
     end
     item = f
@@ -95,7 +111,7 @@ local function execute(item)
   end
 end
 
-local function _uninstall(name, pre, post)
+local function _uninstall(self, name, pre, post)
   debugc("preremove " .. name)
   if pre then
     debugc(f "  Firing preremove for pkg: {name}")
@@ -103,7 +119,16 @@ local function _uninstall(name, pre, post)
     debugc(f "  END preremove for pkg: {name}")
   end
 
-  uninstallPackage(name)
+  local succ = uninstallPackage(name)
+  if not succ then
+    debugc("Could not uninstall package at " .. name)
+
+    if self.uninstallHandle then
+      killAnonymousEventHandler(self.uninstallHandle)
+    end
+
+    return
+  end
 
   debugc("postremove " .. name)
   if post then
@@ -115,7 +140,7 @@ local function _uninstall(name, pre, post)
   raiseEvent("__PKGNAME__:uninstalled", name)
 end
 
-local function _install(name, path, pre, post)
+local function _install(self, name, path, pre, post)
   debugc("preinstall " .. name)
   if pre then
     debugc(f "  Firing preinstall for pkg: {name}")
@@ -126,6 +151,10 @@ local function _install(name, path, pre, post)
   local succ = installPackage(path)
   if not succ then
     debugc("Could not install package at " .. path)
+
+    if self.installHandle then
+      killAnonymousEventHandler(self.installHandle)
+    end
 
     return
   end
@@ -191,17 +220,25 @@ function __PKGNAME__:reload()
     =
     self.preremove, self.postremove, self.preinstall, self.postinstall
 
-  registerAnonymousEventHandler("__PKGNAME__:uninstalled", function(_, uninstalledName)
-    if uninstalledName ~= name then return true end
+  self.uninstallHandle = registerAnonymousEventHandler(
+    "__PKGNAME__:uninstalled",
+    function(_, uninstalledName)
+      if uninstalledName ~= name then return true end
 
-    registerAnonymousEventHandler("__PKGNAME__:installed", function(_, installedName)
-      if installedName ~= name then return true end
+      self.installHandle = registerAnonymousEventHandler(
+        "__PKGNAME__:installed",
+        function(_, installedName)
+          if installedName ~= name then return true end
 
-      debugc("Done reloading pkg " .. name)
-    end, true)
+          debugc("Done reloading pkg " .. name)
+        end,
+        true
+      )
 
-    _install(name, path, prei, posti)
-  end, true)
+      _install(self, name, path, prei, posti)
+    end,
+    true
+  )
 
-  _uninstall(name, prer, postr)
+  _uninstall(self, name, prer, postr)
 end
