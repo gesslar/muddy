@@ -21,18 +21,20 @@ function __PKGNAME__:new(cons)
 
   local ok, result
 
-  ok, result = glu.table.associative(cons)
+  ok, result = pcall(glu.table.associative, cons)
   if not ok then
-    if result == false then
-      debugc(
-        "Error in constructor options passed to __PKGNAME__, or constructor " ..
-        "options is not a table."
-      )
-    else
-      debugc(
-        "Error in constructor options passed to __PKGNAME__ " .. tostring(result)
-      )
-    end
+    debugc(
+      "Error in constructor options passed to __PKGNAME__ " .. tostring(result)
+    )
+
+    return
+  end
+
+  if result == false then
+    debugc(
+      "Error in constructor options passed to __PKGNAME__, or constructor " ..
+      "options is not a table."
+    )
 
     return
   end
@@ -112,31 +114,39 @@ local function execute(item)
 end
 
 local function _uninstall(self, name, pre, post)
-  debugc("preremove " .. name)
-  if pre then
-    debugc(f "  Firing preremove for pkg: {name}")
-    execute(pre)
-    debugc(f "  END preremove for pkg: {name}")
-  end
+  local installed = table.contains(getPackages(), name)
 
-  local succ = uninstallPackage(name)
-  if not succ then
-    debugc("Could not uninstall package at " .. name)
-
-    if self.uninstallHandle then
-      killAnonymousEventHandler(self.uninstallHandle)
+  if installed == true then
+    debugc("preremove " .. name)
+    if pre then
+      debugc(f "  Firing preremove for pkg: {name}")
+      execute(pre)
+      debugc(f "  END preremove for pkg: {name}")
     end
 
-    return
+    local succ = uninstallPackage(name)
+    if not succ then
+      debugc("Could not uninstall package at " .. name)
+
+      if self.uninstallHandle then
+        killAnonymousEventHandler(self.uninstallHandle)
+      end
+
+      return
+    end
+
+    debugc("postremove " .. name)
+    if post then
+      debugc(f "  Firing postremove for pkg: {name}")
+      execute(post)
+      debugc(f "  END postremove for pkg: {name}")
+    end
+
   end
 
-  debugc("postremove " .. name)
-  if post then
-    debugc(f "  Firing postremove for pkg: {name}")
-    execute(post)
-    debugc(f "  END postremove for pkg: {name}")
-  end
-
+  -- doesn't matter, just pretend like we uninstalled when something wasn't
+  -- even installed in the first place. nobody will know. it'll be our little
+  -- secret.
   raiseEvent("__PKGNAME__:uninstalled", name)
 end
 
