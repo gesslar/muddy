@@ -4,6 +4,8 @@ import {execSync} from "node:child_process"
 import path from "node:path"
 import readline from "node:readline"
 
+import Helper from "./Helper.js"
+
 /**
  * @typedef {object} GenerateOptions
  * @property {string} name - Project name
@@ -209,6 +211,10 @@ class Generate {
     // Write README.md
     await projectDir.getFile("README.md")
       .write(this.#readmeTemplate(opts))
+
+    // Emit the MuddyHelper.lua watcher so a freshly generated project is ready
+    // to drop into Mudlet and hot-reload, just like an unpacked one.
+    await Helper.emit(projectDir, opts.name, glog)
 
     // Generate module types
     if(opts.scripts) {

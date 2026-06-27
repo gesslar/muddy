@@ -167,6 +167,16 @@ describe("--generate / -g option", () => {
       assert.match(content, /A test pkg/)
     })
 
+    it("should emit a tailored MuddyHelper.lua wired to the project", async () => {
+      const helper = path.join(projectDir, "testpkg.MuddyHelper.lua")
+      assert.ok(await exists(helper), "helper should be emitted")
+
+      const content = await readFile(helper, "utf8")
+      assert.match(content, /testpkgHelper = testpkgHelper or/, "global named from package")
+      assert.match(content, /local name = \[\[testpkg\]\]/, "package name wrapped safely")
+      assert.ok(content.includes(projectDir), "points the watcher at the project path")
+    })
+
     it("should generate scripts", async () => {
       const dir = path.join(
         projectDir, "src", "scripts", "testpkg"
