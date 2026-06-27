@@ -1,6 +1,7 @@
 import c from "@gesslar/colours"
-import {DirectoryObject} from "@gesslar/toolkit"
+import {DirectoryObject, FileSystem} from "@gesslar/toolkit"
 
+import Lua from "./Lua.js"
 import Type from "./Type.js"
 
 /**
@@ -42,10 +43,17 @@ export default class Add {
     }
 
     const resolvedName = name || this.#tempName(type, entries)
-    const safeName = resolvedName.replaceAll(/[^\w]/g, "_").replace(/^\d+/, "")
 
-    if(!safeName) {
-      glog.error(`Module name '${resolvedName}' produces an empty filename after sanitization.`)
+    // Add is interactive, so reject a name that can't be a portable filename and
+    // let the author choose a better one — rather than silently mangling it into
+    // a .lua name that no longer resembles what they typed. (Unpack runs
+    // unattended and sanitizes instead; there is no human there to prompt.)
+    if(!FileSystem.sane(resolvedName)) {
+      glog.error(
+        `Module name '${resolvedName}' is not a valid filename. Avoid `
+        + `characters like / \\ : * ? " < > |, trailing dots or spaces, and `
+        + `reserved device names (CON, NUL, ...).`
+      )
       process.exit(1)
     }
 
@@ -54,11 +62,13 @@ export default class Add {
       process.exit(1)
     }
 
-    const luaFile = typeDir.getFile(`${safeName}.lua`)
+    // Name the .lua the same way the build looks it up (see Lua.fileName), so it
+    // round-trips. The name is already sane, so this only collapses whitespace.
+    const luaFile = typeDir.getFile(`${Lua.fileName(resolvedName)}.lua`)
     if(await luaFile.exists) {
       glog.error(
         `A .lua file '${luaFile.relativeTo(cwd)}' already exists`
-        + ` (name '${resolvedName}' sanitizes to '${safeName}.lua').`
+        + ` (name '${resolvedName}' maps to '${luaFile.name}').`
       )
       process.exit(1)
     }

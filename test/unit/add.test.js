@@ -222,6 +222,27 @@ describe("add command", () => {
     })
   })
 
+  describe("illegal filename characters", () => {
+    // Add is interactive: a name that can't be a safe filename is rejected so
+    // the author can rename, rather than silently mangled the way unattended
+    // unpack sanitizes. See FileSystem.sane / Lua.fileName.
+    let projectDir
+
+    before(async() => {
+      projectDir = await scaffold(path.join(tmpDir, "illegal"))
+    })
+
+    it("rejects a name with an illegal character and writes nothing", async() => {
+      const {code, stdout, stderr} = await add(projectDir, "script", "Foo:Bar/Baz")
+      assert.notEqual(code, 0, "should exit with error")
+      assert.match(stdout + stderr, /not a valid filename/)
+      assert.ok(
+        !await exists(path.join(projectDir, "src", "scripts", "scripts.json")),
+        "no json should be written on rejection"
+      )
+    })
+  })
+
   describe("unknown type", () => {
     it("should reject an invalid type", async() => {
       const projectDir = await scaffold(

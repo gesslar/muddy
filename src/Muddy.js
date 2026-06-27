@@ -35,9 +35,13 @@ const {IF, SPLIT} = ACTIVITY
  * - Packaging everything into a compressed .mpackage file
  */
 export default class Muddy {
+  /** @type {DirectoryObject} */
   #projectDirectory
+  /** @type {DirectoryObject} */
   #srcDirectory
+  /** @type {FileObject} */
   #mfileObject
+  /** @type {DirectoryObject} */
   #temp
 
   /**
@@ -53,8 +57,10 @@ export default class Muddy {
     Valid.type(projectDirectory, "DirectoryObject")
     Valid.type(log, "Glog")
 
+    const srcDirectory = projectDirectory.getDirectory("src")
+
     this.#projectDirectory = projectDirectory
-    this.#srcDirectory = projectDirectory.getDirectory("src")
+    this.#srcDirectory = srcDirectory
     this.#mfileObject = mfileObject ?? null
 
     const temp = mkdtempSync(path.join(os.tmpdir(), "muddy-"))
@@ -66,10 +72,7 @@ export default class Muddy {
     const runner = new AR(builder)
 
     try {
-      return await runner.run({
-        projectDirectory: this.#projectDirectory,
-        srcDirectory: this.#srcDirectory,
-      })
+      return await runner.run({projectDirectory, srcDirectory})
     } catch(error) {
       throw Sass.new("Executing Muddy.", error)
     }
@@ -359,7 +362,7 @@ export default class Muddy {
       if(!scriptName || script)
         continue
 
-      const expected = `${scriptName.replaceAll(/\s/g, "_")}.lua`
+      const expected = `${Lua.fileName(scriptName)}.lua`
       const scriptFile = jsonFile.parent.getFile(expected)
       if(!await scriptFile.exists) {
         glog.warn(c`{${kind}}${scriptFile.relativeTo(srcDirectory)}{/} does not exist`)

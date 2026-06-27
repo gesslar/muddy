@@ -578,4 +578,62 @@ describe("unpack command", () => {
       assert.equal(rebuilt, original)
     })
   })
+
+  describe("illegal filename characters in module names", () => {
+    // A module name is free text, but its sibling .lua is named after it. A name
+    // carrying a filesystem-illegal character (here `/`, which getFile would
+    // otherwise treat as a path separator, and `:`) must collapse to a single
+    // safe filename on both sides — build derives it to read the script, unpack
+    // derives it to write it — so the module still round-trips by name rather
+    // than vanishing into a stray subdirectory or an unwritable path.
+    let srcDir
+    let out
+
+    before(async() => {
+      srcDir = path.join(tmpDir, "illegal-src")
+      await write(path.join(srcDir, "mfile"), JSON.stringify({
+        package: "Illegal", version: "1.0.0", author: "t",
+      }, null, 2) + "\n")
+      // JSON keeps the illegal name; the .lua lives at the sanitized base.
+      await write(path.join(srcDir, "src", "scripts", "scripts.json"),
+        "[{\"name\":\"Foo:Bar/Baz\"}]\n")
+      await write(path.join(srcDir, "src", "scripts", "Foo_Bar_Baz.lua"), "echo(\"ok\")\n")
+
+      const b = await build(srcDir)
+      assert.equal(b.code, 0, `build failed: ${b.stderr}`)
+
+      out = path.join(tmpDir, "illegal-out")
+      const u = await unpack(path.join(srcDir, "build", "Illegal.mpackage"), out, "--no-helper")
+      assert.equal(u.code, 0, `unpack failed: ${u.stderr}`)
+    })
+
+    const o = (...p) => path.join(out, ...p)
+
+    it("writes the .lua at the sanitized name with its content intact", async() => {
+      // Content surviving proves the build resolved the script by the sanitized
+      // name (an unresolved one would unpack to an empty stub).
+      assert.equal(await readFile(o("src", "scripts", "Foo_Bar_Baz.lua"), "utf8"), "echo(\"ok\")\n")
+    })
+
+    it("does not let `/` in the name leak into a subdirectory", async() => {
+      assert.ok(
+        !await exists(o("src", "scripts", "Foo:Bar")),
+        "the slash must not split the name into a nested path"
+      )
+    })
+
+    it("preserves the original illegal name in the JSON", async() => {
+      const defs = await readJSON(o("src", "scripts", "scripts.json"))
+      assert.deepEqual(defs.map(e => e.name), ["Foo:Bar/Baz"])
+    })
+
+    it("rebuilds cleanly, reproducing the original XML byte-for-byte", async() => {
+      const rebuild = await build(out)
+      assert.equal(rebuild.code, 0, `rebuild failed: ${rebuild.stderr}`)
+
+      const original = await readFile(path.join(srcDir, "build", "Illegal.xml"), "utf8")
+      const rebuilt = await readFile(o("build", "Illegal.xml"), "utf8")
+      assert.equal(rebuilt, original)
+    })
+  })
 })
