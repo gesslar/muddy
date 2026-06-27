@@ -1,6 +1,6 @@
 import {ActionBuilder as AB, ACTIVITY, ActionRunner as AR} from "@gesslar/actioneer"
 import c from "@gesslar/colours"
-import {DirectoryObject, FileObject, Sass, Util, Valid} from "@gesslar/toolkit"
+import {DirectoryObject, Sass, Util, Valid} from "@gesslar/toolkit"
 import AdmZip from "adm-zip"
 import {mkdtempSync} from "node:fs"
 import os from "node:os"
@@ -8,6 +8,7 @@ import path from "node:path"
 import {create} from "xmlbuilder2"
 
 import Disk from "./Disk.js"
+import Helper from "./Helper.js"
 import Lua from "./Lua.js"
 import {
   KEY_CODE_NAMES,
@@ -21,7 +22,7 @@ import Type from "./Type.js"
 /**
  * Type imports.
  *
- * @import {Glog} from "@gesslar/toolkit"
+ * @import {FileObject, Glog} from "@gesslar/toolkit"
  */
 
 let /** @type {Glog} */ glog
@@ -666,31 +667,7 @@ export default class Unpack {
   #emitHelper = async ctx => {
     const {packageName} = ctx
 
-    // Resolve the shipped template relative to this module (not the caller's
-    // cwd). fromCwf() hands back the FileObject for this very file.
-    const templateFile = FileObject.fromCwf()
-      .parent
-      .getDirectory("templates")
-      .getFile("MuddyHelper.lua")
-    const template = await templateFile.read()
-
-    // A Lua-safe identifier for the global table name: non-word chars to
-    // underscores, leading digits stripped (matches Generate's #luaSafe).
-    const pkgId = packageName.replaceAll(/[^\w]/g, "_").replace(/^\d+/, "")
-
-    // @PKGNAME@ is cosmetic (comments); @PKGID@ is a Lua identifier. The values
-    // that land in Lua string positions (@NAME@, @PATH@) go through
-    // Lua.longString so any character — including `]]` in a path — embeds safely.
-    const content = template
-      .replaceAll("@PKGNAME@", packageName)
-      .replaceAll("@PKGID@", pkgId)
-      .replaceAll("@NAME@", Lua.longString(packageName))
-      .replaceAll("@PATH@", Lua.longString(this.#projectDirectory.path))
-
-    const helperFile = this.#projectDirectory.getFile(`${packageName}.MuddyHelper.lua`)
-    await helperFile.write(content)
-
-    glog.success(c`Wrote {other}${helperFile.relativeTo(this.#projectDirectory)}{/}`)
+    await Helper.emit(this.#projectDirectory, packageName, glog)
 
     return ctx
   }
