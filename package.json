@@ -54,7 +54,7 @@
   "dependencies": {
     "@gesslar/actioneer": "^3.1.1",
     "@gesslar/colours": "^1.0.0",
-    "@gesslar/toolkit": "^5.6.0",
+    "@gesslar/toolkit": "^5.8.0",
     "adm-zip": "^0.5.17",
     "chokidar": "^5.0.0",
     "commander": "^15.0.0",
@@ -62,7 +62,7 @@
   },
   "devDependencies": {
     "@gesslar/uglier": "^2.4.1",
-    "eslint": "^10.5.0",
+    "eslint": "^10.6.0",
     "typescript": "^6.0.3"
   }
 }

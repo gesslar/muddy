@@ -1,3 +1,4 @@
+import {ActionBuilder as AB, ACTIVITY, ActionRunner as AR} from "@gesslar/actioneer"
 import c from "@gesslar/colours"
 import {DirectoryObject, FileObject, Sass, Util, Valid} from "@gesslar/toolkit"
 import AdmZip from "adm-zip"
@@ -104,6 +105,8 @@ export default class Unpack {
   #temp
   /** @type {DirectoryObject} */
   #projectDirectory
+  /** @type {{ helper: boolean, readme: boolean }} */
+  #options
 
   /**
    * Unpacks an mpackage into a project directory.
@@ -115,64 +118,170 @@ export default class Unpack {
    * @param {boolean} [options.helper=true] - Emit a MuddyHelper.lua watcher script
    * @param {boolean} [options.readme=false] - Write the package description to README.md instead of mfile
    * @returns {Promise<DirectoryObject>} The populated project directory
-   * @throws {Sass} If the archive is missing or cannot be processed
+   * @throws {Sass} If the archive cannot be processed
    */
   async run(mpackageFile, projectDirectory, log, options={}) {
     Valid.type(mpackageFile, "FileObject")
     Valid.type(projectDirectory, "DirectoryObject")
     Valid.type(log, "Glog")
+    Valid.type(options, "Object|Null")
 
-    const {helper=true, readme=false} = options
+    const {helper=true, readme=false} = options ?? {}
 
-    glog = log
+    this.#options = {helper, readme}
     this.#projectDirectory = projectDirectory
-
-    if(!await mpackageFile.exists)
-      throw Sass.new(`No such file ${mpackageFile.url}`)
 
     const temp = mkdtempSync(path.join(os.tmpdir(), "unmuddy-"))
     this.#temp = new DirectoryObject(temp)
 
+    glog = log
+
+    const builder = new AB(this)
+    const runner = new AR(builder)
+
     try {
-      glog.info(c`Extracting {<B}${mpackageFile.name}{B>}`)
-      new AdmZip(mpackageFile.path).extractAllTo(temp, true)
-
-      const xmlFile = await this.#findXmlFile()
-      const srcDirectory = projectDirectory.getDirectory("src")
-      await srcDirectory.assureExists({recursive: true})
-
-      await this.#unpackModules(xmlFile, srcDirectory)
-      await this.#reconstructResources(xmlFile, srcDirectory)
-      const packageName =
-        await this.#reconstructMetadata(projectDirectory, readme)
-
-      if(helper)
-        await this.#emitHelper(projectDirectory, packageName)
-
-      glog.success(c`Unpacked into {<B}${projectDirectory.path}{B>}`)
-
-      return projectDirectory
+      return await runner.run({mpackageFile})
     } catch(error) {
-      throw Sass.new("Unpacking mpackage.", error)
-    } finally {
-      await Disk.deleteRecursive(this.#temp, true)
+      throw Sass.new("Executing Muddy unpacking.", error)
     }
   }
 
   /**
-   * Locates the MudletPackage XML file at the root of the extracted archive.
+   * Configures the action builder with the processing pipeline steps.
+   *
+   * @param {AB} builder - Builder instance
+   */
+  async setup(builder) {
+    try {
+      builder
+        .do("Extract .mpackage", this.#extractMpackage)
+        .do("Find config.lua", this.#findConfigLua)
+        .do("Get the mpackage name", this.#getMpackageName)
+        .do("Find the package XML file", this.#findPackageXml)
+        .do("Setup the source directory", this.#setupSourceDirectory)
+        .do("Unpack modules", this.#unpackModules)
+        .do("Reconstruct resources", this.#reconstructResources)
+        .do("Reconstruct mfile", this.#reconstructMetadata)
+        .do("Emit helper", ACTIVITY.IF, () => this.#options.helper, this.#emitHelper)
+        .do("Announce completion", this.#announceCompletion)
+        .done(this.#cleanUp)
+    } catch(error) {
+      throw Sass.new("Building the action.", error)
+    }
+  }
+
+  /**
+   * Extracts the `.mpackage` archive into the temporary work directory.
    *
    * @private
-   * @returns {Promise<FileObject>} The XML file
-   * @throws {Sass} If no XML file is found
+   * @param {object} ctx - The context object
+   * @returns {object} The context object
    */
-  #findXmlFile = async() => {
-    const found = await this.#temp.glob("*.xml")
+  #extractMpackage = ctx => {
+    const {mpackageFile} = ctx
 
-    if(found.files.length === 0)
-      throw Sass.new("No MudletPackage XML found in the archive.")
+    glog.info(c`Extracting {<B}${mpackageFile.name}{B>}`)
+    new AdmZip(mpackageFile.path).extractAllTo(this.#temp.path, true)
 
-    return found.files[0]
+    return ctx
+  }
+
+  /**
+   * Reads the archive's `config.lua` into the context, failing if it is absent.
+   *
+   * @private
+   * @param {object} ctx - The context object
+   * @returns {Promise<object>} Context with `configData` (trimmed file text)
+   * @throws {Sass} If no config.lua exists in the archive
+   */
+  #findConfigLua = async ctx => {
+    glog.info(c`Looking for {other}config.lua{/}`)
+
+    const configLua = this.#temp.getFile("config.lua")
+
+    if(!(await configLua.exists))
+      throw Sass.new("No 'config.lua' found in .mpackage archive.")
+
+    ctx.configData = (await configLua.read()).trim()
+
+    glog.success(c`Found {other}config.lua{/}`)
+
+    return ctx
+  }
+
+  /**
+   * Extracts the package name from the `mpackage` field of config.lua.
+   *
+   * @private
+   * @param {object} ctx - The context object
+   * @returns {object} Context with `packageName`
+   * @throws {Sass} If no `mpackage` field is found in config.lua
+   */
+  #getMpackageName = ctx => {
+    glog.info("Extracting package name from config.lua")
+
+    const {configData} = ctx
+
+    // Match either a Lua long string at any bracket level — `[[..]]`, `[=[..]=]`,
+    // … — or a quoted string. The build writes every config value through
+    // Lua.longString, which escalates the level when the value contains `]]`, so
+    // a package name carrying `]]` arrives as `[=[..]=]`; the `\1` backreference
+    // pairs the closing delimiter to the opening level. Mirrors #parseConfig.
+    const {bracketName, quoteName} =
+      /^\s*mpackage\s*=\s*(?:\[(=*)\[(?<bracketName>[\s\S]*?)\]\1\]|(?<quote>['"])(?<quoteName>[\s\S]*?)\k<quote>)$/gm
+        .exec(configData)?.groups ?? {}
+
+    if(!bracketName && !quoteName)
+      throw Sass.new("No 'mpackage' field found in config.lua")
+
+    ctx.packageName = bracketName || quoteName
+
+    glog.success(c`Package name is {other}${ctx.packageName}{/}`)
+
+    return ctx
+  }
+
+  /**
+   * Locates the `<packageName>.xml` MudletPackage file in the extracted archive.
+   *
+   * @private
+   * @param {object} ctx - The context object
+   * @returns {Promise<object>} Context with `xmlFile`
+   * @throws {Sass} If the named XML file is not found in the archive
+   */
+  #findPackageXml = async ctx => {
+    const {packageName} = ctx
+    const fileName = `${packageName}.xml`
+
+    glog.info(c`Looking for {other}${fileName}{/}`)
+
+    const xmlFile = this.#temp.getFile(fileName)
+    if(!(await xmlFile.exists))
+      throw Sass.new(`No package file ${fileName} found in .mpackage archive`)
+
+    glog.success(c`Found {other}${fileName}{/}`)
+
+    ctx.xmlFile = xmlFile
+
+    return ctx
+  }
+
+  /**
+   * Creates the project `src/` directory and adds it to the context.
+   *
+   * @private
+   * @param {object} ctx - The context object
+   * @returns {Promise<object>} Context with `srcDirectory`
+   */
+  #setupSourceDirectory = async ctx => {
+    const srcDirectory = this.#projectDirectory.getDirectory("src")
+    await srcDirectory.assureExists({recursive: true})
+
+    ctx.srcDirectory = srcDirectory
+
+    glog.success(c`Created {other}${ctx.srcDirectory.path}{/}`)
+
+    return ctx
   }
 
   /**
@@ -180,11 +289,12 @@ export default class Unpack {
    * `src/<kind>/` layout.
    *
    * @private
-   * @param {FileObject} xmlFile - The MudletPackage XML file
-   * @param {DirectoryObject} srcDirectory - The project `src/` directory
-   * @returns {Promise<void>}
+   * @param {object} ctx - The context object (with `xmlFile` and `srcDirectory`)
+   * @returns {Promise<object>} The context object
    */
-  #unpackModules = async(xmlFile, srcDirectory) => {
+  #unpackModules = async ctx => {
+    const {xmlFile, srcDirectory} = ctx
+
     glog.info(c`Parsing {other}${xmlFile.name}{/}`)
 
     const xml = await xmlFile.read()
@@ -203,6 +313,8 @@ export default class Unpack {
       const kindDirectory = srcDirectory.getDirectory(kind)
       await this.#writeNodes(single, kind, nodes, kindDirectory)
     }
+
+    return ctx
   }
 
   /**
@@ -280,7 +392,7 @@ export default class Unpack {
       // announce the ones that actually carry content to keep output quiet.
       await directory.assureExists({recursive: true})
 
-      const luaFile = directory.getFile(`${this.#luaName(definition.name)}.lua`)
+      const luaFile = directory.getFile(`${Lua.fileName(definition.name)}.lua`)
       await luaFile.write(script)
 
       if(script)
@@ -298,7 +410,7 @@ export default class Unpack {
     await jsonFile.write(`${JSON.stringify(entries, null, 2)}\n`)
     glog.success(
       c`Wrote {${kind}}${jsonFile.relativeTo(this.#projectDirectory)}{/} `+
-      `(${entries.length} item(s))`
+      `(${entries.length} item${entries.length == 1 ? "" : "s"})`
     )
   }
 
@@ -457,11 +569,11 @@ export default class Unpack {
    * subdirectory structure so it round-trips through a rebuild.
    *
    * @private
-   * @param {FileObject} xmlFile - The MudletPackage XML file (excluded)
-   * @param {DirectoryObject} srcDirectory - The project `src/` directory
-   * @returns {Promise<void>}
+   * @param {object} ctx - The context object (with `xmlFile` and `srcDirectory`)
+   * @returns {Promise<object>} The context object
    */
-  #reconstructResources = async(xmlFile, srcDirectory) => {
+  #reconstructResources = async ctx => {
+    const {xmlFile, srcDirectory} = ctx
     const found = await this.#temp.glob("**/*")
 
     // The package XML lives at the archive root, so exclude it by relative path,
@@ -477,7 +589,7 @@ export default class Unpack {
     })
 
     if(resources.length === 0)
-      return
+      return ctx
 
     const resourcesDirectory = srcDirectory.getDirectory("resources")
 
@@ -490,6 +602,8 @@ export default class Unpack {
       await file.copy(destination.path)
       glog.success(c`Wrote {other}${destination.relativeTo(this.#projectDirectory)}{/}`)
     }
+
+    return ctx
   }
 
   /**
@@ -504,22 +618,14 @@ export default class Unpack {
    * build re-sources it from there.
    *
    * @private
-   * @param {DirectoryObject} projectDirectory - The target project directory
-   * @param {boolean} readme - Write the description to README.md instead of mfile
-   * @returns {Promise<string|null>} The reconstructed package name, or null
+   * @param {object} ctx - The context object (with `configData`)
+   * @returns {Promise<object>} The context object
    */
-  #reconstructMetadata = async(projectDirectory, readme) => {
-    const configFile = this.#temp.getFile("config.lua")
-
-    if(!await configFile.exists) {
-      glog.warn("No config.lua in archive — skipping mfile reconstruction.")
-
-      return null
-    }
-
-    const config = this.#parseConfig(await configFile.read())
+  #reconstructMetadata = async ctx => {
+    const {configData} = ctx
+    const config = this.#parseConfig(configData)
     const mfile = {}
-    const toReadme = readme && Boolean(config.description)
+    const toReadme = this.#options.readme && Boolean(config.description)
 
     // Restore each carried field to its mfile home, verbatim. When --readme was
     // requested, the description is diverted to README.md (below) instead.
@@ -533,19 +639,19 @@ export default class Unpack {
 
     mfile.outputFile = true
 
-    const mfileObject = projectDirectory.getFile("mfile")
+    const mfileObject = this.#projectDirectory.getFile("mfile")
     await mfileObject.write(`${JSON.stringify(mfile, null, 2)}\n`)
-    glog.success(c`Wrote {other}${mfileObject.relativeTo(projectDirectory)}{/}`)
+    glog.success(c`Wrote {other}${mfileObject.relativeTo(this.#projectDirectory)}{/}`)
 
     if(toReadme) {
       const description = config.description
       const content = description.endsWith("\n") ? description : `${description}\n`
-      const readmeFile = projectDirectory.getFile("README.md")
+      const readmeFile = this.#projectDirectory.getFile("README.md")
       await readmeFile.write(content)
-      glog.success(c`Wrote {other}${readmeFile.relativeTo(projectDirectory)}{/}`)
+      glog.success(c`Wrote {other}${readmeFile.relativeTo(this.#projectDirectory)}{/}`)
     }
 
-    return mfile.package ?? null
+    return ctx
   }
 
   /**
@@ -554,16 +660,11 @@ export default class Unpack {
    * package on every rebuild — no hand-written helper required.
    *
    * @private
-   * @param {DirectoryObject} projectDirectory - The target project directory
-   * @param {string|null} packageName - The package name to wire the helper to
-   * @returns {Promise<void>}
+   * @param {object} ctx - The context object (with `packageName`)
+   * @returns {Promise<object>} The context object
    */
-  #emitHelper = async(projectDirectory, packageName) => {
-    if(!packageName) {
-      glog.warn("No package name — skipping MuddyHelper.lua.")
-
-      return
-    }
+  #emitHelper = async ctx => {
+    const {packageName} = ctx
 
     // Resolve the shipped template relative to this module (not the caller's
     // cwd). fromCwf() hands back the FileObject for this very file.
@@ -584,11 +685,14 @@ export default class Unpack {
       .replaceAll("@PKGNAME@", packageName)
       .replaceAll("@PKGID@", pkgId)
       .replaceAll("@NAME@", Lua.longString(packageName))
-      .replaceAll("@PATH@", Lua.longString(projectDirectory.path))
+      .replaceAll("@PATH@", Lua.longString(this.#projectDirectory.path))
 
-    const helperFile = projectDirectory.getFile(`${packageName}.MuddyHelper.lua`)
+    const helperFile = this.#projectDirectory.getFile(`${packageName}.MuddyHelper.lua`)
     await helperFile.write(content)
-    glog.success(c`Wrote {other}${helperFile.relativeTo(projectDirectory)}{/}`)
+
+    glog.success(c`Wrote {other}${helperFile.relativeTo(this.#projectDirectory)}{/}`)
+
+    return ctx
   }
 
   /**
@@ -614,12 +718,29 @@ export default class Unpack {
   }
 
   /**
-   * Derives the `.lua` filename muddy expects for a module name — whitespace
-   * collapses to underscores, matching the build's script lookup.
+   * Announces successful completion and yields the populated project directory
+   * as the pipeline's final value.
    *
    * @private
-   * @param {string} name - The module name
-   * @returns {string} The sanitized base filename (without extension)
+   * @returns {DirectoryObject} The populated project directory
    */
-  #luaName = name => name.replaceAll(/\s/g, "_")
+  #announceCompletion = () => {
+    glog.success(c`Unpacked into {<B}${this.#projectDirectory.path}{B>}`)
+
+    return this.#projectDirectory
+  }
+
+  /**
+   * Removes the temporary extraction directory. Runs as the pipeline's `done`
+   * finalizer, so it fires even when an earlier step throws.
+   *
+   * @private
+   * @param {unknown} ctx - The final context (or the caught error on failure)
+   * @returns {Promise<unknown>} The context, passed through unchanged
+   */
+  #cleanUp = async ctx => {
+    await Disk.deleteRecursive(this.#temp, true)
+
+    return ctx
+  }
 }

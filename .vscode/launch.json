@@ -35,6 +35,22 @@
     {
       "type": "node",
       "request": "launch",
+      "name": "Debug Muddy CLI (unpack ThresholdUI)",
+      "program": "${workspaceFolder}/src/cli.js",
+      "args": [
+        "unpack",
+        "${workspaceFolder}/work/ThresholdUI/ThresholdUI.mpackage",
+        "--nerd"
+      ],
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "outputCapture": "std",
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "node",
+      "request": "launch",
       "name": "Debug Muddy CLI (work/test)",
       "program": "${workspaceFolder}/src/cli.js",
       "args": [
