@@ -55,7 +55,7 @@
     "@gesslar/actioneer": "^3.1.1",
     "@gesslar/colours": "^1.0.0",
     "@gesslar/toolkit": "^5.8.0",
-    "adm-zip": "^0.5.17",
+    "adm-zip": "^0.6.0",
     "chokidar": "^5.0.0",
     "commander": "^15.0.0",
     "xmlbuilder2": "^4.0.3"
