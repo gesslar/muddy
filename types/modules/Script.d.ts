@@ -20,6 +20,6 @@ export default class Script extends MudletModule {
      */
     get eventHandlerList(): Array<string>;
     toJSON(): any;
-    toXMLFragment(): any;
+    fieldsXMLFragment(): any;
 }
 //# sourceMappingURL=Script.d.ts.map

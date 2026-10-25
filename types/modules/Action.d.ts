@@ -16,6 +16,6 @@ export default class Action extends Module {
     get buttonColumn(): any;
     get buttonRotation(): any;
     toJSON(): any;
-    toXMLFragment(): any;
+    fieldsXMLFragment(): any;
 }
 //# sourceMappingURL=Action.d.ts.map

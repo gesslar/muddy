@@ -7,6 +7,6 @@ export default class Timer extends MudletModule {
     get isTempTimer(): any;
     get isOffsetTimer(): any;
     toJSON(): any;
-    toXMLFragment(): any;
+    fieldsXMLFragment(): any;
 }
 //# sourceMappingURL=Timer.d.ts.map

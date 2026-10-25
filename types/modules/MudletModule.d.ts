@@ -90,10 +90,19 @@ export default class MudletModule {
     toJSON(): any;
     toString(): string;
     /**
-     * Converts this module to an XML fragment for Mudlet package format.
+     * Converts this module to an XML fragment for Mudlet package format: its own
+     * fields from {@link MudletModule#fieldsXMLFragment}, then its children
+     * nested after them, the way Mudlet and muddler both export.
      *
      * @returns {import("xmlbuilder2").XMLBuilder}
      */
     toXMLFragment(): import("xmlbuilder2").XMLBuilder;
+    /**
+     * Builds the element for this module with its own fields and no children.
+     * Subclasses extend it with their type's fields, in schema order.
+     *
+     * @returns {import("xmlbuilder2").XMLBuilder}
+     */
+    fieldsXMLFragment(): import("xmlbuilder2").XMLBuilder;
 }
 //# sourceMappingURL=MudletModule.d.ts.map

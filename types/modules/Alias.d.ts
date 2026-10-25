@@ -8,6 +8,6 @@ export default class Alias extends MudletModule {
     get regex(): any;
     get command(): any;
     toJSON(): any;
-    toXMLFragment(): any;
+    fieldsXMLFragment(): any;
 }
 //# sourceMappingURL=Alias.d.ts.map
