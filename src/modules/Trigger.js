@@ -34,6 +34,14 @@ export const PATTERN_TYPE_NAMES = Object.freeze(
     .map(([name]) => name)
 )
 
+// Muddler's names for pattern types that muddy spells differently. Accepted
+// when packing; unpacking always emits muddy's names from PATTERN_TYPES.
+const PATTERN_TYPE_ALIASES = Object.freeze({
+  startOfLine: "begin",
+  exactMatch: "exact",
+  colour: "color",
+})
+
 // Muddler JSON field name → Mudlet XML field name
 const FIELD_MAP = Object.freeze({
   command: "mCommand",
@@ -65,7 +73,7 @@ function translate(object) {
   if(result.patterns && !result.regexCodeList) {
     result.regexCodeList = result.patterns.map(p => p.pattern)
     result.regexCodePropertyList = result.patterns.map(p => {
-      const code = PATTERN_TYPES[p.type]
+      const code = PATTERN_TYPES[PATTERN_TYPE_ALIASES[p.type] ?? p.type]
       Valid.assert(code !== undefined, `Unknown pattern type '${p.type}'`)
 
       return code
