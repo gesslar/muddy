@@ -22,6 +22,6 @@ export default class Key extends MudletModule {
     get keyCode(): any;
     get keyModifier(): any;
     toJSON(): any;
-    toXMLFragment(): any;
+    fieldsXMLFragment(): any;
 }
 //# sourceMappingURL=Key.d.ts.map

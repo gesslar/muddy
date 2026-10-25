@@ -34,6 +34,6 @@ export default class Trigger extends MudletModule {
     get isColorTriggerFg(): any;
     get isColorTriggerBg(): any;
     toJSON(): any;
-    toXMLFragment(): any;
+    fieldsXMLFragment(): any;
 }
 //# sourceMappingURL=Trigger.d.ts.map
