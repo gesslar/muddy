@@ -888,7 +888,7 @@ local ConditionsClass = Glu.glass.register({
 
     --- Checks if a value is of a specific type.
     ---@param value any The value to check
-    ---@param type string The type to check against
+    ---@param expected_type string The type to check against
     ---@param message string|nil The message to return if the values are not of the specified type
     ---@return boolean ok The condition
     ---@return string|nil message The message
@@ -960,6 +960,33 @@ local ColourClass = Glu.glass.register({
   dependencies = { "number" },
   setup = function(___, self)
     local v = self.v
+
+    -- Converts RGB to unrounded HSL (degrees, percent, percent). Also reports
+    -- whether the colour is achromatic (a grey), in which case its hue is
+    -- meaningless and reported as 0.
+    local function raw_hsl(rgb)
+      local r, g, b = rgb[1] / 255, rgb[2] / 255, rgb[3] / 255
+      local max, min = math.max(r, g, b), math.min(r, g, b)
+      local h, s, l = 0, 0, (max + min) / 2
+
+      if max ~= min then
+        local d = max - min
+        s = l > 0.5 and d / (2 - max - min) or d / (max + min)
+
+        if max == r then
+          h = (g - b) / d + (g < b and 6 or 0)
+        elseif max == g then
+          h = (b - r) / d + 2
+        else
+          h = (r - g) / d + 4
+        end
+
+        h = h / 6
+      end
+
+      return { h * 360, s * 100, l * 100 }, max == min
+    end
+
     --- Interpolates between two RGB colours based on a step value. Functionally,
     --- it takes two colours and returns a third colour somewhere between the
     --- two colours, based on the step value. Generally used to fade between two
@@ -1009,12 +1036,21 @@ local ColourClass = Glu.glass.register({
         f "Invalid interpolation method: {method}. Must be one of: " ..
         table.concat(valid_methods, ", "), 4, false)
 
-      local hsl1 = self.rgb_to_hsl(rgb1)
-      local hsl2 = self.rgb_to_hsl(rgb2)
+      -- Work in unrounded HSL so dark or subtle colours keep their precision
+      local hsl1, grey1 = raw_hsl(rgb1)
+      local hsl2, grey2 = raw_hsl(rgb2)
       local t = factor / 100
 
-      -- Special handling for hue to ensure we take shortest path around the color wheel
+      -- A grey has no hue, so borrow the other colour's hue rather than
+      -- sweeping around the wheel from red.
       local h1, h2 = hsl1[1], hsl2[1]
+      if grey1 and not grey2 then
+        h1 = h2
+      elseif grey2 and not grey1 then
+        h2 = h1
+      end
+
+      -- Special handling for hue to ensure we take shortest path around the color wheel
       local diff = h2 - h1
       if diff > 180 then
         h2 = h2 - 360
@@ -1041,30 +1077,13 @@ local ColourClass = Glu.glass.register({
     function self.rgb_to_hsl(rgb)
       ___.v.rgb_table(rgb, 1, false)
 
-      local r, g, b = rgb[1] / 255, rgb[2] / 255, rgb[3] / 255
-      local max, min = math.max(r, g, b), math.min(r, g, b)
-      local h, s, l = 0, 0, (max + min) / 2
+      local h, s, l = table.unpack((raw_hsl(rgb)))
 
-      if max ~= min then
-        local d = max - min
-        s = l > 0.5 and d / (2 - max - min) or d / (max + min)
-
-        if max == r then
-          h = (g - b) / d + (g < b and 6 or 0)
-        elseif max == g then
-          h = (b - r) / d + 2
-        else
-          h = (r - g) / d + 4
-        end
-
-        h = h / 6
-      end
-
-      -- Convert to degrees/percentages and ensure numbers
+      -- Round to whole degrees/percentages
       return {
-        math.floor(h * 360 + 0.5),
-        math.floor(s * 100 + 0.5),
-        math.floor(l * 100 + 0.5)
+        math.floor(h + 0.5),
+        math.floor(s + 0.5),
+        math.floor(l + 0.5)
       }
     end
 
@@ -1583,9 +1602,15 @@ local DateClass = Glu.glass.register({
   setup = function(___, self, opts)
     local v = ___.v
 
+    -- Calendar approximations used when formatting long durations.
+    local DAYS_PER_YEAR = 365
+    local DAYS_PER_MONTH = 30
+
     --- Converts a number of seconds into hours, minutes, and seconds.
     --- When `as_string` is true, returns a single human-readable string such as
-    --- "1h 2m 3s". Otherwise, returns three zero-padded "HH", "MM", "SS" strings.
+    --- "1y 2mo 3d 4h 5m 6s", omitting any zero units ("0s" when all are zero).
+    --- A year is 365 days and a month is 30 days. Otherwise, returns three
+    --- zero-padded "HH", "MM", "SS" strings, where hours are not capped at 24.
     ---
     ---@param seconds number The number of seconds to convert.
     ---@param as_string boolean|nil Whether to return a single formatted string instead of three values. (Optional. Default is false.)
@@ -1598,6 +1623,8 @@ local DateClass = Glu.glass.register({
     --- -- "01", "01", "01"
     --- date.shms(3661, true)
     --- -- "1h 1m 1s"
+    --- date.shms(90061, true)
+    --- -- "1d 1h 1m 1s"
     --- ```
     function self.shms(seconds, as_string)
       v.type(seconds, "number", 1, false)
@@ -1632,9 +1659,26 @@ local DateClass = Glu.glass.register({
       end
 
       if as_string then
+        -- Break the hours down further into years, months, and days.
+        local dd = math.floor(hh / 24)
+        local hours = hh % 24
+        local yy = math.floor(dd / DAYS_PER_YEAR)
+        dd = dd % DAYS_PER_YEAR
+        local mo = math.floor(dd / DAYS_PER_MONTH)
+        dd = dd % DAYS_PER_MONTH
+
         local r = {}
-        if hh ~= 0 then
-          r[#r + 1] = hh .. "h"
+        if yy ~= 0 then
+          r[#r + 1] = yy .. "y"
+        end
+        if mo ~= 0 then
+          r[#r + 1] = mo .. "mo"
+        end
+        if dd ~= 0 then
+          r[#r + 1] = dd .. "d"
+        end
+        if hours ~= 0 then
+          r[#r + 1] = hours .. "h"
         end
         if mm ~= 0 then
           r[#r + 1] = mm .. "m"
@@ -1643,7 +1687,11 @@ local DateClass = Glu.glass.register({
           r[#r + 1] = ss .. "s"
         end
 
-        return table.concat(r, " ") or "0s"
+        if #r == 0 then
+          return "0s"
+        end
+
+        return table.concat(r, " ")
       else
         local result_hours = string.format("%02d", hh)
         local result_minutes = string.format("%02d", mm)
@@ -1661,11 +1709,12 @@ local DependencyQueueClass = Glu.glass.register({
   name = "dependency_queue",
   extends = "queue",
   call = "new_dependency_queue",
-  dependencies = { "queue", "table", },
+  dependencies = { "queue", "table", "fd", "url", },
   setup = function(___, self)
     --- Builds a queue that installs any of the given Mudlet packages that are not already installed.
-    --- Filters out already-installed packages, wires up sysInstall and sysDownloadError event
-    --- handlers, and invokes the callback with success and a message when finished.
+    --- Filters out already-installed packages, downloads each remaining package into its own
+    --- temporary directory, installs it from there, and invokes the callback with success and a
+    --- message when finished.
     ---
     ---@param packages table List of package descriptors, each a {name, url} table.
     ---@param cb function Callback called with a success boolean and a message string when finished.
@@ -1688,6 +1737,7 @@ local DependencyQueueClass = Glu.glass.register({
         cb = cb,
         queue = self.new_queue(),
         packages = not_installed,
+        current = nil,
         handler_name = f "dependency_{id}_installed",
       }
       ___.table.add(self, this)
@@ -1695,16 +1745,46 @@ local DependencyQueueClass = Glu.glass.register({
       for _, package in ipairs(not_installed) do
         local func = function()
           cecho("Installing dependency `<b>" .. package.name .. "</b>`...\n")
-          installPackage(package.url)
+
+          -- Mudlet's download and install events are global, and the URL they
+          -- carry may have been rewritten by redirection, so the URL cannot
+          -- identify an event as ours. The local path can: we name the file
+          -- for a fresh UUID that nothing else in the profile can collide
+          -- with. The name is ours to choose because Mudlet takes the package
+          -- name from the archive's config.lua manifest, not from the file --
+          -- only the extension has to survive, since that selects the format.
+          local dir = ___.fd.fix_path(getMudletHomeDir() .. "/tmp")
+          local ok, err = ___.fd.assure_dir(dir)
+          if not ok then
+            local reason = err or "unknown error"
+            self.cb(false, f "Could not create a temporary directory for `<b>{package.name}</b>`: {reason}\n")
+            self.clean_up()
+            return
+          end
+
+          local parsed = ___.url.parse(package.url)
+          local ext = parsed and parsed.file and string.match(parsed.file, "%.(%w+)$") or "mpackage"
+
+          self.current = {
+            package = package,
+            target = ___.fd.fix_path(dir .. "/" .. ___.id() .. "." .. ext),
+          }
+
+          downloadFile(self.current.target, package.url)
         end
 
         self.queue.push(func)
       end
 
-      registerNamedEventHandler("glu", self.handler_name, "sysInstall",
-        function(event, package)
-          if package ~= self.packages[1].name then return end
+      registerNamedEventHandler("glu", self.handler_name, "sysInstallPackage",
+        function(event, package, file)
+          -- sysInstallPackage reports the file Mudlet was asked to install, so
+          -- the same UUID path that identifies our downloads identifies our
+          -- installs. sysInstall carries only a package name, which any other
+          -- component installing something of that name would also produce.
+          if not self.is_ours(file) then return end
 
+          self.discard_temp()
           ___.table.shift(self.packages)
           tempTimer(1, function()
             local q, count = self.queue.execute()
@@ -1716,17 +1796,59 @@ local DependencyQueueClass = Glu.glass.register({
         end
       )
 
+      registerNamedEventHandler("glu", self.handler_name .. "_download_done", "sysDownloadDone",
+        function(event, local_file)
+          if not self.is_ours(local_file) then return end
+
+          installPackage(self.current.target)
+        end
+      )
+
       registerNamedEventHandler("glu", self.handler_name .. "_download_error", "sysDownloadError",
-        function(event, package)
-          self.cb(false, f "Failed to download dependency `<b>{package}</b>`.\nCleaning up.\n")
+        function(event, err, local_file, url)
+          if not self.is_ours(local_file) then return end
+
+          local name = self.current.package.name
+          local reason = err or "unknown error"
+
+          self.discard_temp()
+          self.cb(false, f "Failed to download dependency `<b>{name}</b>`: {reason}\nCleaning up.\n")
           self.clean_up()
         end
       )
 
+      --- Determines whether a download or install event refers to the file this
+      --- queue is currently working on. The path was chosen by us and contains a UUID,
+      --- so an exact match is unambiguous and no guessing is required.
+      ---
+      ---@param local_file string? The local path reported by the download event.
+      ---@return boolean result Whether the event refers to our download.
+      function self.is_ours(local_file)
+        if not self.current or type(local_file) ~= "string" then return false end
+
+        return ___.fd.fix_path(local_file) == self.current.target
+      end
+
+      --- Removes the temporary file holding the current download, if any.
+      --- Safe to call more than once.
+      function self.discard_temp()
+        local current = self.current
+        if not current then return end
+
+        if ___.fd.file_exists(current.target) then ___.fd.rmfile(current.target) end
+
+        self.current = nil
+      end
+
       --- Removes the registered event handlers and tears down the queue.
-      --- Deletes the named sysInstall and sysDownloadError handlers and clears the handler name and queue.
+      --- Deletes the named sysInstallPackage, sysDownloadDone and sysDownloadError
+      --- handlers, discards any temporary download, and clears the handler name
+      --- and queue.
       function self.clean_up()
+        self.discard_temp()
+
         deleteNamedEventHandler("glu", self.handler_name)
+        deleteNamedEventHandler("glu", self.handler_name .. "_download_done")
         deleteNamedEventHandler("glu", self.handler_name .. "_download_error")
         self.handler_name = nil
         self.queue = nil
@@ -1879,9 +2001,15 @@ local FdClass = Glu.glass.register({
     end
 
     --- Reads a file and decodes its JSON contents.
+    ---
+    --- The decoded value mirrors the JSON document's top-level type, so it may be
+    --- a table (object or array), string, number, or boolean — not only a table.
+    --- A JSON `null` decodes to the `yajl.null` sentinel (userdata), which stays
+    --- distinct from the `nil` returned on failure.
+    ---
     ---@param path string The path to the JSON file.
-    ---@return table|nil data The decoded value, or nil on failure.
-    ---@return string|nil error The error message, if the read or decode failed.
+    ---@return table|string|number|boolean|userdata|nil data The decoded value, or nil if the file is missing, unreadable, or contains invalid JSON.
+    ---@return string|nil error The error message: "No such file" when missing, the read error when unreadable, or the parser error when the JSON is malformed.
     ---@example
     --- ```lua
     --- fd.read_json("path/to/file.json")
@@ -1894,7 +2022,10 @@ local FdClass = Glu.glass.register({
         return nil, "No such file '" .. path .. "'"
       end
 
-      local data = self.read_file(path)
+      local data, err = self.read_file(path)
+
+      if not data then return nil, err end
+
       local ok, result = pcall(yajl.to_value, data)
 
       if not ok then return nil, result end

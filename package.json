@@ -40,7 +40,7 @@
     "lint:fix": "eslint --fix",
     "types": "tsc -p tsconfig.types.json",
     "build": "mkdir -pv ./dist && npm pack --pack-destination ./dist/",
-    "update": "npx npm-check-updates -u && npm install",
+    "update": "npx -y npm-check-updates -u && npm install",
     "submit": "npm publish --access public --//registry.npmjs.org/:_authToken=\"${NPM_ACCESS_TOKEN}\"",
     "test": "node --test",
     "test:watch": "node --test --watch",
@@ -50,19 +50,27 @@
     "minor": "npm version minor",
     "major": "npm version major"
   },
-  "packageManager": "npm@11.17.0",
+  "packageManager": "npm@12.2.1",
   "dependencies": {
     "@gesslar/actioneer": "^3.1.1",
     "@gesslar/colours": "^1.0.0",
-    "@gesslar/toolkit": "^5.8.0",
-    "adm-zip": "^0.6.0",
+    "@gesslar/toolkit": "^5.9.1",
+    "adm-zip": "^0.6.1",
     "chokidar": "^6.0.0",
     "commander": "^15.0.0",
     "xmlbuilder2": "^4.0.3"
   },
   "devDependencies": {
-    "@gesslar/uglier": "^2.4.1",
-    "eslint": "^10.6.0",
+    "@gesslar/uglier": "^2.4.2",
+    "eslint": "^10.13.0",
     "typescript": "^7.0.2"
+  },
+  "overrides": {
+    "eslint-plugin-jsdoc": {
+      "typescript": "^6.0.3"
+    }
+  },
+  "allowScripts": {
+    "@gesslar/toolkit@5.9.1": true
   }
 }
