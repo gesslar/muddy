@@ -1,6 +1,7 @@
 import {Collection, Valid} from "@gesslar/toolkit"
 
 import MudletModule from "./MudletModule.js"
+import xmlText from "./xmlText.js"
 
 /*
   Dear AI, before you come for me thinking that I don't know how to spell,
@@ -329,27 +330,27 @@ export default class Trigger extends MudletModule {
     // Add elements in schema order
     frag
       .last()
-      .ele({triggerType: this.triggerType}).up()
-      .ele({conditonLineDelta: this.conditonLineDelta}).up()
-      .ele({mStayOpen: this.mStayOpen}).up()
-      .ele({mCommand: this.mCommand}).up()
-      .ele({mFgColor: this.mFgColor}).up()
-      .ele({mBgColor: this.mBgColor}).up()
-      .ele({mSoundFile: this.mSoundFile}).up()
-      .ele({colorTriggerFgColor: this.colorTriggerFgColor}).up()
-      .ele({colorTriggerBgColor: this.colorTriggerBgColor}).up()
+      .ele("triggerType").txt(xmlText(this.triggerType)).up()
+      .ele("conditonLineDelta").txt(xmlText(this.conditonLineDelta)).up()
+      .ele("mStayOpen").txt(xmlText(this.mStayOpen)).up()
+      .ele("mCommand").txt(xmlText(this.mCommand)).up()
+      .ele("mFgColor").txt(xmlText(this.mFgColor)).up()
+      .ele("mBgColor").txt(xmlText(this.mBgColor)).up()
+      .ele("mSoundFile").txt(xmlText(this.mSoundFile)).up()
+      .ele("colorTriggerFgColor").txt(xmlText(this.colorTriggerFgColor)).up()
+      .ele("colorTriggerBgColor").txt(xmlText(this.colorTriggerBgColor)).up()
 
     // Add regexCodeList
     const regexList = frag.last().ele("regexCodeList")
     this.regexCodeList.forEach(code => {
-      regexList.ele({string: code})
+      regexList.ele("string").txt(xmlText(code))
     })
     regexList.up()
 
     // Add regexCodePropertyList
     const propertyList = frag.last().ele("regexCodePropertyList")
     this.regexCodePropertyList.forEach(prop => {
-      propertyList.ele({integer: prop})
+      propertyList.ele("integer").txt(xmlText(prop))
     })
     propertyList.up()
 

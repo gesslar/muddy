@@ -1,6 +1,7 @@
 import {Valid} from "@gesslar/toolkit"
 
 import MudletModule from "./MudletModule.js"
+import xmlText from "./xmlText.js"
 
 const DEFAULT_TIME = "00:00:00.000"
 
@@ -98,8 +99,8 @@ export default class Timer extends MudletModule {
     // Add elements in schema order (after name, script, packageName from Module)
     frag
       .last()
-      .ele({command: this.command}).up()
-      .ele({time: this.time}).up()
+      .ele("command").txt(xmlText(this.command)).up()
+      .ele("time").txt(xmlText(this.time)).up()
 
     return frag
   }

@@ -1,6 +1,7 @@
 import {Collection, Valid} from "@gesslar/toolkit"
 
 import MudletModule from "./MudletModule.js"
+import xmlText from "./xmlText.js"
 
 /**
  * Script module - represents a Lua script in Mudlet with optional event handlers.
@@ -50,7 +51,7 @@ export default class Script extends MudletModule {
 
     // Add eventHandlerList as a container with string children
     const handlerList = frag.last().ele("eventHandlerList")
-    this.eventHandlerList.forEach(handler => handlerList.ele({string: handler}))
+    this.eventHandlerList.forEach(handler => handlerList.ele("string").txt(xmlText(handler)))
 
     handlerList.up()
 

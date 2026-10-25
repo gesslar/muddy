@@ -1,6 +1,8 @@
 import {Sass, Util, Valid} from "@gesslar/toolkit"
 import {fragment} from "xmlbuilder2"
 
+import xmlText from "./xmlText.js"
+
 /**
  * Base class for all Mudlet module types (scripts, triggers, aliases, etc.).
  */
@@ -173,9 +175,9 @@ export default class MudletModule {
 
     const root = frag
       .ele(tag, {isActive: this.isActive, isFolder: this.isFolder})
-      .ele({name: this.name}).up()
-      .ele({script: this.script}).up()
-      .ele({packageName: this.packageName}).up()
+      .ele("name").txt(xmlText(this.name)).up()
+      .ele("script").txt(xmlText(this.script)).up()
+      .ele("packageName").txt(xmlText(this.packageName)).up()
 
     // If this is a folder, serialize its children as nested modules.
     if(this.isFolder === "yes" && children && children.size > 0) {

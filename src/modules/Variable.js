@@ -1,6 +1,8 @@
 import {Valid} from "@gesslar/toolkit"
 import {fragment} from "xmlbuilder2"
 
+import xmlText from "./xmlText.js"
+
 export default class Variable {
   #meta = new Map()
 
@@ -72,10 +74,10 @@ export default class Variable {
 
     frag
       .ele("VariableGroup", {isActive: this.isActive, isFolder: this.isFolder})
-      .ele({name: this.name}).up()
-      .ele({keyType: this.keyType}).up()
-      .ele({value: this.value}).up()
-      .ele({valueType: this.valueType}).up()
+      .ele("name").txt(xmlText(this.name)).up()
+      .ele("keyType").txt(xmlText(this.keyType)).up()
+      .ele("value").txt(xmlText(this.value)).up()
+      .ele("valueType").txt(xmlText(this.valueType)).up()
 
     return frag
   }
