@@ -770,4 +770,64 @@ describe("unpack command", () => {
       )
     })
   })
+
+  describe("character references in attribute flags", () => {
+    // Entity shielding covers attribute values too, so flags must be decoded
+    // like element text. `&#121;es` is a valid spelling of "yes".
+    let out
+    const Y = "&#121;es"
+
+    before(async() => {
+      const xml = [
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+        "<!DOCTYPE MudletPackage>",
+        "<MudletPackage version=\"1.001\">",
+        "  <TriggerPackage>",
+        `    <Trigger isActive="&#110;o" isFolder="no" isMultiline="${Y}" `
+          + `isPerlSlashGOption="${Y}" isFilterTrigger="${Y}" isColorizerTrigger="${Y}">`,
+        "      <name>T</name><script/><packageName/>",
+        "      <mCommand/><mFgColor>#ff0000</mFgColor><mBgColor>#000000</mBgColor>",
+        "      <regexCodeList><string>x</string></regexCodeList>",
+        "      <regexCodePropertyList><integer>0</integer></regexCodePropertyList>",
+        "    </Trigger>",
+        "  </TriggerPackage>",
+        "  <TimerPackage>",
+        `    <Timer isActive="yes" isFolder="no" isOffsetTimer="${Y}">`,
+        "      <name>Ti</name><script/><packageName/>",
+        "      <command/><time>00:00:01.000</time>",
+        "    </Timer>",
+        "  </TimerPackage>",
+        "</MudletPackage>",
+      ].join("\n")
+
+      const zip = new AdmZip()
+      zip.addFile("Flags.xml", Buffer.from(xml))
+      zip.addFile("config.lua", Buffer.from("mpackage = [[Flags]]\n"))
+      const mpackage = path.join(tmpDir, "Flags.mpackage")
+      zip.writeZip(mpackage)
+
+      out = path.join(tmpDir, "flags-out")
+      const u = await unpack(mpackage, out, "--no-helper")
+      assert.equal(u.code, 0, `unpack failed: ${u.stderr}`)
+    })
+
+    it("decodes trigger flags", async() => {
+      const [t] = await readJSON(path.join(out, "src", "triggers", "triggers.json"))
+      assert.equal(t.isActive, "no")
+      assert.equal(t.multiline, "yes")
+      assert.equal(t.matchall, "yes")
+      assert.equal(t.filter, "yes")
+      assert.equal(t.highlight, "yes")
+    })
+
+    it("decodes the timer offset flag", async() => {
+      const [ti] = await readJSON(path.join(out, "src", "timers", "timers.json"))
+      assert.equal(ti.isOffsetTimer, "yes")
+    })
+
+    it("rebuilds cleanly", async() => {
+      const rebuild = await build(out)
+      assert.equal(rebuild.code, 0, `rebuild failed: ${rebuild.stderr}`)
+    })
+  })
 })

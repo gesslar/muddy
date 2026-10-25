@@ -81,6 +81,22 @@ const decodeEntities = value =>
 const text = value => typeof value === "string" ? decodeEntities(value) : ""
 
 /**
+ * Reads an attribute of an element parsed by xmlbuilder2's object format.
+ * {@link shieldEntities} covers attribute values too, so they need the same
+ * decoding as element text. Otherwise `isOffsetTimer="&#121;es"` would no
+ * longer read as "yes".
+ *
+ * @param {unknown} node - The parsed element
+ * @param {string} name - The attribute name, without the `@` prefix
+ * @returns {string|undefined} The decoded value, or undefined when absent
+ */
+const attr = (node, name) => {
+  const value = node?.[`@${name}`]
+
+  return typeof value === "string" ? decodeEntities(value) : undefined
+}
+
+/**
  * Reads a child element's text by tag, falling back into xmlbuilder2's
  * mixed-content `"#"` array.
  *
@@ -474,7 +490,7 @@ export default class Unpack {
   #reverseDefinition = (single, node) => {
     const definition = {
       name: text(node.name),
-      isActive: node["@isActive"] ?? "yes",
+      isActive: attr(node, "isActive") ?? "yes",
       isFolder: "no",
     }
 
@@ -499,7 +515,7 @@ export default class Unpack {
         definition.command = text(node.command)
         definition.time = text(node.time) || "00:00:00.000"
 
-        if(node["@isOffsetTimer"] === "yes")
+        if(attr(node, "isOffsetTimer") === "yes")
           definition.isOffsetTimer = "yes"
 
         break
@@ -551,7 +567,7 @@ export default class Unpack {
     if(command)
       definition.command = command
 
-    if(node["@isMultiline"] === "yes") {
+    if(attr(node, "isMultiline") === "yes") {
       definition.multiline = "yes"
 
       const delta = text(node.conditonLineDelta)
@@ -560,10 +576,10 @@ export default class Unpack {
         definition.multilineDelta = delta
     }
 
-    if(node["@isPerlSlashGOption"] === "yes")
+    if(attr(node, "isPerlSlashGOption") === "yes")
       definition.matchall = "yes"
 
-    if(node["@isFilterTrigger"] === "yes")
+    if(attr(node, "isFilterTrigger") === "yes")
       definition.filter = "yes"
 
     const fireLength = text(node.mStayOpen)
@@ -571,7 +587,7 @@ export default class Unpack {
     if(fireLength && fireLength !== "0")
       definition.fireLength = fireLength
 
-    if(node["@isColorizerTrigger"] === "yes") {
+    if(attr(node, "isColorizerTrigger") === "yes") {
       definition.highlight = "yes"
       definition.highlightFG = text(node.mFgColor)
       definition.highlightBG = text(node.mBgColor)
