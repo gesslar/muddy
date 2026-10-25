@@ -227,7 +227,7 @@ export default class Unpack {
    * Names taken in each directory so far, keyed by path, then by lower-cased
    * name so the project works on case-insensitive filesystems too.
    *
-   * @type {Map<string, Map<string, {as: "directory"|"file", name: string, owner: string}>>}
+   * @type {Map<string, Map<string, {as: "directory"|"file", name: string, owner: string, definition?: object, script?: string}>>}
    */
   #claims = new Map()
   /**
@@ -552,9 +552,12 @@ export default class Unpack {
    * @param {string} name - The directory or file name
    * @param {"directory"|"file"} as - What the name is taken as
    * @param {string} owner - The module taking it, for diagnostics
-   * @returns {{as: string, name: string, owner: string}|undefined} The earlier claim, if any
+   * @param {{definition?: object, script?: string}} [held] - For a module's
+   *   `.lua`, the module's definition and the script written to the file
+   * @returns {{as: string, name: string, owner: string, definition?: object, script?: string}|undefined}
+   *   The earlier claim, if any
    */
-  #claim = (directory, name, as, owner) => {
+  #claim = (directory, name, as, owner, held = {}) => {
     if(!this.#claims.has(directory.path))
       this.#claims.set(directory.path, new Map())
 
@@ -563,7 +566,7 @@ export default class Unpack {
     const prior = claims.get(key)
 
     if(!prior)
-      claims.set(key, {as, name, owner})
+      claims.set(key, {as, name, owner, ...held})
 
     return prior
   }
@@ -671,13 +674,12 @@ export default class Unpack {
    * @returns {Promise<object>} The JSON definition
    */
   #writeDefinition = async(single, kind, node, isFolder, directory) => {
-    const definition = isFolder
-      ? {
-        name: field(node, "name"),
-        isActive: attr(node, "isActive") ?? "yes",
-        isFolder: "yes",
-      }
-      : this.#reverseDefinition(single, fields(node))
+    // A folder keeps its own settings (a trigger group's patterns, an alias
+    // group's regex, …) just as a leaf does.
+    const definition = {
+      ...this.#reverseDefinition(single, fields(node)),
+      isFolder: isFolder ? "yes" : "no",
+    }
     const script = field(node, "script")
 
     await this.#writeScript(kind, definition, script, directory)
@@ -739,7 +741,7 @@ export default class Unpack {
     const base = Lua.fileName(definition.name)
     const fileName = base && `${base}.lua`
     const prior = fileName
-      && this.#claim(directory, fileName, "file", definition.name)
+      && this.#claim(directory, fileName, "file", definition.name, {definition, script})
 
     if(fileName && !prior) {
       // Always lay down a sibling .lua so every JSON entry has the file muddy
@@ -760,10 +762,27 @@ export default class Unpack {
     // muddy and muddler only read the .lua for an entry with no inline script.
     if(script) {
       definition.script = script
-    } else if(prior) {
+
+      return
+    }
+
+    // With no script of its own, this module would read the file's owner's
+    // script on rebuild. Move that script inline and give this one the file,
+    // emptied, so both keep their own.
+    if(prior?.definition) {
+      if(prior.script) {
+        prior.definition.script = prior.script
+        prior.script = ""
+        await directory.getFile(fileName).write("")
+      }
+
+      return
+    }
+
+    if(prior) {
       glog.warn(
         `'${definition.name}' shares ${fileName} with '${prior.owner}' and `+
-        `has no script of its own; a rebuild will give it that script.`
+        `has no script of its own; a rebuild will give it whatever is there.`
       )
     }
   }
@@ -1049,14 +1068,26 @@ export default class Unpack {
    */
   #parseConfig = content => {
     const config = {}
-    const pattern =
-      /(\w+)\s*=\s*(?:\[(=*)\[([\s\S]*?)\]\2\]|(["'])((?:\\[\s\S]|(?!\4)[^\\\n])*)\4)/g
+
+    // Scanned left to right, consuming comments and strings whole, the way
+    // Lua reads them: a `--` inside a string is text, and an assignment
+    // inside a comment doesn't count. Alternatives, in order: long comment,
+    // line comment, assignment (long-bracket or quoted value), and any other
+    // long-bracket or quoted string, which is skipped.
+    const pattern = new RegExp([
+      String.raw`--\[(=*)\[[\s\S]*?\]\1\]`,
+      String.raw`--[^\n]*`,
+      String.raw`(\w+)\s*=\s*(?:\[(=*)\[([\s\S]*?)\]\3\]|(["'])((?:\\[\s\S]|(?!\5)[^\\\n])*)\5)`,
+      String.raw`\[(=*)\[[\s\S]*?\]\7\]`,
+      String.raw`(["'])(?:\\[\s\S]|(?!\8)[^\\\n])*\8`,
+    ].join("|"), "g")
 
     let match
     while((match = pattern.exec(content)) !== null) {
-      const [, key, , long, quote, quoted] = match
+      const [, , key, , long, quote, quoted] = match
 
-      config[key] = quote ? decodeLuaEscapes(quoted) : long
+      if(key)
+        config[key] = quote ? decodeLuaEscapes(quoted) : long
     }
 
     return config

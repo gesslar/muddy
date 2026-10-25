@@ -1223,8 +1223,10 @@ describe("unpack command", () => {
       assert.equal(nameless.script, "-- nameless")
     })
 
-    it("warns when a colliding leaf with no script would pick up another's", () => {
-      assert.match(unpacked.stdout + unpacked.stderr, /'c_d'.*c_d\.lua/)
+    it("gives a colliding leaf with no script the .lua, moving the other inline", async() => {
+      assert.equal(await readFile(path.join(out, "src", "triggers", "c_d.lua"), "utf8"), "")
+      assert.equal(byName(top, "c d").script, "-- cd")
+      assert.equal(byName(top, "c_d").script, undefined)
     })
 
     it("rebuilds every module with its own script", async() => {
@@ -1244,6 +1246,8 @@ describe("unpack command", () => {
         ["foo", "-- F2"], ["x", "-- x"], ["y", "-- y"], ["", "-- nameless"], ["c d", "-- cd"],
       ])
         assert.equal(scripts.get(name), script, `script of ${JSON.stringify(name)}`)
+
+      assert.match(xml, /<name>c_d<\/name>\s*<script\/>/)
 
       for(const name of ["G", "Combat/Healing", "..", "", "x.lua"]) {
         const tag = name
@@ -1544,6 +1548,120 @@ describe("unpack command", () => {
       assert.match(xml, /<name>Pat<\/name>[\s\S]*?<mCommand>cmd<\/mCommand>[\s\S]*?<string>\^x\$<\/string>[\s\S]*?<integer>1<\/integer>/)
       assert.match(xml, /<AliasGroup[^>]*>\s*<name>Ag<\/name>[\s\S]*?<regex>\^go\$<\/regex>/)
       assert.match(xml, /<TriggerGroup[^>]*>\s*<name>Plain<\/name>/)
+    })
+  })
+
+  describe("comments in config.lua", () => {
+    // Mudlet runs config.lua as Lua, so commented-out assignments don't count,
+    // while a `--` inside a string is just text.
+    let out
+    let unpacked
+
+    before(async() => {
+      const config = [
+        "-- mpackage = [[Commented]]",
+        "mpackage = [[Actual]]",
+        "-- mpackage = [[Example]]",
+        "title = \"has -- dashes\"",
+        "--[==[",
+        "title = [[Hidden]]",
+        "]==]",
+        "author = 'Real' -- a trailing comment",
+        "--[[ version = [[9.9.9]] ]]",
+        "version = [[1.0.0]]",
+      ].join("\n") + "\n"
+
+      const xml = [
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+        "<!DOCTYPE MudletPackage>",
+        "<MudletPackage version=\"1.001\"><ScriptPackage>",
+        "<Script isActive=\"yes\" isFolder=\"no\"><name>S</name><script>x=1</script>",
+        "<packageName/><eventHandlerList/></Script>",
+        "</ScriptPackage></MudletPackage>",
+      ].join("\n")
+
+      const zip = new AdmZip()
+      zip.addFile("Actual.xml", Buffer.from(xml))
+      zip.addFile("config.lua", Buffer.from(config))
+      const mpackage = path.join(tmpDir, "Commented.mpackage")
+      zip.writeZip(mpackage)
+
+      out = path.join(tmpDir, "commented-out")
+      unpacked = await unpack(mpackage, out, "--no-helper")
+    })
+
+    it("ignores commented-out assignments", async() => {
+      assert.equal(unpacked.code, 0, `unpack failed: ${unpacked.stdout}${unpacked.stderr}`)
+
+      const mfile = await readJSON(path.join(out, "mfile"))
+      assert.equal(mfile.package, "Actual")
+      assert.equal(mfile.title, "has -- dashes")
+      assert.equal(mfile.author, "Real")
+      assert.equal(mfile.version, "1.0.0")
+    })
+  })
+
+  describe("settings of folders kept as JSON entries", () => {
+    // A folder written as a JSON entry (nested in a chain, or with a name
+    // that can't be a directory) keeps every setting, as a directory's
+    // folder entry does.
+    let out
+    let rebuilt
+
+    const leaf = name => [
+      "<Trigger isActive=\"yes\" isFolder=\"no\">",
+      `<name>${name}</name><script>-- ${name}</script><packageName/><mCommand/>`,
+      "<regexCodeList><string>p</string></regexCodeList>",
+      "<regexCodePropertyList><integer>0</integer></regexCodePropertyList>",
+    ].join("")
+    const group = (name, pattern, command, ...kids) => [
+      "<TriggerGroup isActive=\"yes\" isFolder=\"yes\">",
+      `<name>${name}</name><script/><packageName/><mCommand>${command}</mCommand>`,
+      `<regexCodeList><string>${pattern}</string></regexCodeList>`,
+      "<regexCodePropertyList><integer>1</integer></regexCodePropertyList>",
+      ...kids,
+      "</TriggerGroup>",
+    ].join("")
+
+    before(async() => {
+      const xml = [
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+        "<!DOCTYPE MudletPackage>",
+        "<MudletPackage version=\"1.001\"><TriggerPackage>",
+        leaf("Chain"), group("Sub", "^s$", "subcmd", leaf("leafy"), "</Trigger>"), "</Trigger>",
+        group("A/B", "^ab$", "abcmd", leaf("inner"), "</Trigger>"),
+        "</TriggerPackage></MudletPackage>",
+      ].join("\n")
+
+      const zip = new AdmZip()
+      zip.addFile("Js.xml", Buffer.from(xml))
+      zip.addFile("config.lua", Buffer.from("mpackage = [[Js]]\nversion = [[1.0.0]]\n"))
+      const mpackage = path.join(tmpDir, "Js.mpackage")
+      zip.writeZip(mpackage)
+
+      out = path.join(tmpDir, "js-out")
+      const u = await unpack(mpackage, out, "--no-helper")
+      assert.equal(u.code, 0, `unpack failed: ${u.stderr}`)
+
+      rebuilt = await build(out)
+    })
+
+    it("writes the folders' settings into their JSON entries", async() => {
+      const top = await readJSON(path.join(out, "src", "triggers", "triggers.json"))
+      const sub = top.find(e => e.name === "Chain").children[0]
+      assert.equal(sub.name, "Sub")
+      assert.deepEqual(sub.patterns, [{pattern: "^s$", type: "regex"}])
+
+      const ab = top.find(e => e.name === "A/B")
+      assert.deepEqual(ab.patterns, [{pattern: "^ab$", type: "regex"}])
+    })
+
+    it("rebuilds the folders with their settings", async() => {
+      assert.equal(rebuilt.code, 0, `rebuild failed: ${rebuilt.stderr}`)
+
+      const xml = await readFile(path.join(out, "build", "Js.xml"), "utf8")
+      assert.match(xml, /<name>Sub<\/name>[\s\S]*?<mCommand>subcmd<\/mCommand>[\s\S]*?<string>\^s\$<\/string>/)
+      assert.match(xml, /<name>A\/B<\/name>[\s\S]*?<mCommand>abcmd<\/mCommand>[\s\S]*?<string>\^ab\$<\/string>/)
     })
   })
 })
