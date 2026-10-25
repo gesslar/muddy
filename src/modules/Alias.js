@@ -1,6 +1,7 @@
 import {Valid} from "@gesslar/toolkit"
 
 import MudletModule from "./MudletModule.js"
+import xmlText from "./xmlText.js"
 
 export default class Alias extends MudletModule {
   #meta = new Map()
@@ -37,8 +38,8 @@ export default class Alias extends MudletModule {
     // Add elements in schema order (after name, script, packageName from Module)
     frag
       .last()
-      .ele({command: this.command}).up()
-      .ele({regex: this.regex}).up()
+      .ele("command").txt(xmlText(this.command)).up()
+      .ele("regex").txt(xmlText(this.regex)).up()
 
     return frag
   }

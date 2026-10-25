@@ -1,6 +1,7 @@
 import {Valid} from "@gesslar/toolkit"
 
 import Module from "./MudletModule.js"
+import xmlText from "./xmlText.js"
 
 export default class Action extends Module {
   #meta = new Map()
@@ -139,19 +140,19 @@ export default class Action extends Module {
     // Add elements in schema order (after name, packageName, script from Module)
     frag
       .last()
-      .ele({css: this.css}).up()
-      .ele({commandButtonUp: this.commandButtonUp}).up()
-      .ele({commandButtonDown: this.commandButtonDown}).up()
-      .ele({icon: this.icon}).up()
-      .ele({orientation: this.orientation}).up()
-      .ele({location: this.location}).up()
-      .ele({posX: this.posX}).up()
-      .ele({posY: this.posY}).up()
-      .ele({mButtonState: this.mButtonState}).up()
-      .ele({sizeX: this.sizeX}).up()
-      .ele({sizeY: this.sizeY}).up()
-      .ele({buttonColumn: this.buttonColumn}).up()
-      .ele({buttonRotation: this.buttonRotation}).up()
+      .ele("css").txt(xmlText(this.css)).up()
+      .ele("commandButtonUp").txt(xmlText(this.commandButtonUp)).up()
+      .ele("commandButtonDown").txt(xmlText(this.commandButtonDown)).up()
+      .ele("icon").txt(xmlText(this.icon)).up()
+      .ele("orientation").txt(xmlText(this.orientation)).up()
+      .ele("location").txt(xmlText(this.location)).up()
+      .ele("posX").txt(xmlText(this.posX)).up()
+      .ele("posY").txt(xmlText(this.posY)).up()
+      .ele("mButtonState").txt(xmlText(this.mButtonState)).up()
+      .ele("sizeX").txt(xmlText(this.sizeX)).up()
+      .ele("sizeY").txt(xmlText(this.sizeY)).up()
+      .ele("buttonColumn").txt(xmlText(this.buttonColumn)).up()
+      .ele("buttonRotation").txt(xmlText(this.buttonRotation)).up()
 
     return frag
   }

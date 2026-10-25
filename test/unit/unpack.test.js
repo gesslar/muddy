@@ -636,4 +636,138 @@ describe("unpack command", () => {
       assert.equal(rebuilt, original)
     })
   })
+
+  describe("entity-like text (#88)", () => {
+    // Lua that builds HTML for Mudlet labels is full of `&nbsp;` and friends.
+    // xmlbuilder2 left entity-shaped text unescaped on build, so Mudlet hit an
+    // undefined entity and cut the script off there. On unpack it re-escaped
+    // `<`/`&` and decoded `&amp;#160;` twice. Every `&` must be written as
+    // `&amp;` and every field must come back out verbatim.
+    let srcDir
+    let out
+    const TEXT = "<b>&nbsp;HP:</b> &amp; &#160; &#x41; & AT&T amp;"
+    const LUA = `hpbar:echo([[${TEXT}]])\n`
+
+    before(async() => {
+      srcDir = path.join(tmpDir, "entity-src")
+      const src = name => path.join(srcDir, "src", name)
+
+      await write(path.join(srcDir, "mfile"), JSON.stringify({
+        package: "Ent", version: "1.0.0", author: "t",
+      }, null, 2) + "\n")
+      await write(src("scripts/scripts.json"), JSON.stringify([
+        {name: "S", eventHandlerList: [TEXT]},
+      ]) + "\n")
+      await write(src("scripts/S.lua"), LUA)
+      await write(src("aliases/aliases.json"), JSON.stringify([
+        {name: "A", regex: TEXT, command: TEXT},
+      ]) + "\n")
+      await write(src("triggers/triggers.json"), JSON.stringify([
+        {name: "T", patterns: [{pattern: TEXT, type: "substring"}], command: TEXT},
+      ]) + "\n")
+      await write(src("timers/timers.json"), JSON.stringify([
+        {name: "Ti", command: TEXT, time: "00:00:01.000"},
+      ]) + "\n")
+      await write(src("keys/keys.json"), JSON.stringify([
+        {name: "K", keys: "F1", command: TEXT},
+      ]) + "\n")
+
+      const b = await build(srcDir)
+      assert.equal(b.code, 0, `build failed: ${b.stderr}`)
+
+      out = path.join(tmpDir, "entity-out")
+      const u = await unpack(path.join(srcDir, "build", "Ent.mpackage"), out, "--no-helper")
+      assert.equal(u.code, 0, `unpack failed: ${u.stderr}`)
+    })
+
+    const o = (...p) => path.join(out, ...p)
+
+    it("escapes every & in the built XML", async() => {
+      const xml = await readFile(path.join(srcDir, "build", "Ent.xml"), "utf8")
+      const escaped =
+        "&lt;b&gt;&amp;nbsp;HP:&lt;/b&gt; &amp;amp; &amp;#160; &amp;#x41; &amp; AT&amp;T"
+
+      // script, handler, alias regex + command, trigger pattern + command,
+      // timer command, key command
+      assert.equal(xml.split(escaped).length - 1, 8)
+      assert.ok(!xml.includes("&nbsp;"), "no raw &nbsp; may reach Mudlet")
+    })
+
+    it("round-trips the script verbatim", async() => {
+      assert.equal(await readFile(o("src", "scripts", "S.lua"), "utf8"), LUA)
+    })
+
+    it("round-trips event handler names", async() => {
+      const [s] = await readJSON(o("src", "scripts", "scripts.json"))
+      assert.deepEqual(s.eventHandlerList, [TEXT])
+    })
+
+    it("round-trips alias regex and command", async() => {
+      const [a] = await readJSON(o("src", "aliases", "aliases.json"))
+      assert.equal(a.regex, TEXT)
+      assert.equal(a.command, TEXT)
+    })
+
+    it("round-trips trigger patterns and command", async() => {
+      const [t] = await readJSON(o("src", "triggers", "triggers.json"))
+      assert.deepEqual(t.patterns, [{pattern: TEXT, type: "substring"}])
+      assert.equal(t.command, TEXT)
+    })
+
+    it("round-trips timer and key commands", async() => {
+      const [ti] = await readJSON(o("src", "timers", "timers.json"))
+      const [k] = await readJSON(o("src", "keys", "keys.json"))
+      assert.equal(ti.command, TEXT)
+      assert.equal(k.command, TEXT)
+    })
+
+    it("rebuilds cleanly, reproducing the original XML byte-for-byte", async() => {
+      const rebuild = await build(out)
+      assert.equal(rebuild.code, 0, `rebuild failed: ${rebuild.stderr}`)
+
+      const original = await readFile(path.join(srcDir, "build", "Ent.xml"), "utf8")
+      const rebuilt = await readFile(o("build", "Ent.xml"), "utf8")
+      assert.equal(rebuilt, original)
+    })
+  })
+
+  describe("raw &nbsp; in a package built by an older muddy", () => {
+    // Pre-#88 builds wrote `&nbsp;` unescaped. Unpacking one should recover
+    // the source text rather than drop or mangle the reference.
+    let out
+
+    before(async() => {
+      const xml = [
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+        "<!DOCTYPE MudletPackage>",
+        "<MudletPackage version=\"1.001\">",
+        "  <ScriptPackage>",
+        "    <Script isActive=\"yes\" isFolder=\"no\">",
+        "      <name>Old</name>",
+        "      <script>echo([[&lt;b&gt;&nbsp;HP]])</script>",
+        "      <packageName/>",
+        "      <eventHandlerList/>",
+        "    </Script>",
+        "  </ScriptPackage>",
+        "</MudletPackage>",
+      ].join("\n")
+
+      const zip = new AdmZip()
+      zip.addFile("Old.xml", Buffer.from(xml))
+      zip.addFile("config.lua", Buffer.from("mpackage = [[Old]]\n"))
+      const mpackage = path.join(tmpDir, "Old.mpackage")
+      zip.writeZip(mpackage)
+
+      out = path.join(tmpDir, "old-out")
+      const u = await unpack(mpackage, out, "--no-helper")
+      assert.equal(u.code, 0, `unpack failed: ${u.stderr}`)
+    })
+
+    it("keeps &nbsp; as literal text", async() => {
+      assert.equal(
+        await readFile(path.join(out, "src", "scripts", "Old.lua"), "utf8"),
+        "echo([[<b>&nbsp;HP]])"
+      )
+    })
+  })
 })

@@ -7,6 +7,7 @@ import {
   KEY_UNKNOWN,
 } from "./KeyCode.js"
 import MudletModule from "./MudletModule.js"
+import xmlText from "./xmlText.js"
 
 /**
  * @import {Glog} from "@gesslar/toolkit"
@@ -197,9 +198,9 @@ export default class Key extends MudletModule {
     // Add elements in schema order (after name, packageName, script from Module)
     frag
       .last()
-      .ele({command: this.command}).up()
-      .ele({keyCode: this.keyCode}).up()
-      .ele({keyModifier: this.keyModifier}).up()
+      .ele("command").txt(xmlText(this.command)).up()
+      .ele("keyCode").txt(xmlText(this.keyCode)).up()
+      .ele("keyModifier").txt(xmlText(this.keyModifier)).up()
 
     return frag
   }

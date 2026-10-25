@@ -28,13 +28,57 @@ import Type from "./Type.js"
 let /** @type {Glog} */ glog
 
 /**
+ * Stands in for `&` while xmlbuilder2 parses (see {@link shieldEntities}).
+ * A private-use code point, so it can't collide with real markup.
+ */
+const AMP = ""
+
+const ENTITIES = Object.freeze({amp: "&", lt: "<", gt: ">", quot: "\"", apos: "'"})
+
+/**
+ * Hides every entity reference from xmlbuilder2 before parsing.
+ *
+ * xmlbuilder2 can't hand element text back verbatim. Its reader decodes
+ * `&amp;#160;` twice, down to a bare NBSP, and its object format re-escapes
+ * `<`, `>` and `&` on the way out. A script full of HTML entities would
+ * unpack altered (#88). Swapping each `&` for {@link AMP} leaves the
+ * references in the text untouched, and {@link text} decodes them itself, once.
+ * Any literal AMP already in the XML is turned into a character reference
+ * first, so it survives too.
+ *
+ * @param {string} xml - The raw package XML
+ * @returns {string} The XML with every `&` replaced by {@link AMP}
+ */
+const shieldEntities = xml =>
+  xml.replaceAll(AMP, "&#57344;").replaceAll("&", AMP)
+
+/**
+ * Decodes the entity references {@link shieldEntities} left in a value, in a
+ * single pass. An unknown named entity keeps its literal text. That is how a
+ * raw `&nbsp;` in a package built by an older muddy comes back.
+ *
+ * @param {string} value - Shielded text
+ * @returns {string} The decoded text
+ */
+const decodeEntities = value =>
+  value.replace(/(?:#x([0-9a-fA-F]+)|#(\d+)|(\w+));/g, (match, hex, dec, name) => {
+    if(hex)
+      return String.fromCodePoint(parseInt(hex, 16))
+
+    if(dec)
+      return String.fromCodePoint(parseInt(dec, 10))
+
+    return ENTITIES[name] ?? `&${name};`
+  })
+
+/**
  * Reads the text of an element parsed by xmlbuilder2's object format. Empty
  * elements (`<foo/>`) parse to `{}`, populated ones to their string content.
  *
  * @param {unknown} value - The parsed element value
  * @returns {string} The element text, or "" when empty
  */
-const text = value => typeof value === "string" ? value : ""
+const text = value => typeof value === "string" ? decodeEntities(value) : ""
 
 /**
  * Reads a child element's text by tag, falling back into xmlbuilder2's
@@ -299,7 +343,7 @@ export default class Unpack {
     glog.info(c`Parsing {other}${xmlFile.name}{/}`)
 
     const xml = await xmlFile.read()
-    const root = create(xml).end({format: "object"}).MudletPackage ?? {}
+    const root = create(shieldEntities(xml)).end({format: "object"}).MudletPackage ?? {}
 
     for(const kind of Type.PLURAL) {
       const single = Type.TO_SINGLE[kind]
