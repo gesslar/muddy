@@ -134,8 +134,8 @@ export default class Action extends Module {
     )
   }
 
-  toXMLFragment() {
-    const frag = super.toXMLFragment()
+  fieldsXMLFragment() {
+    const frag = super.fieldsXMLFragment()
 
     // Add elements in schema order (after name, packageName, script from Module)
     frag

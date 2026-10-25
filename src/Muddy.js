@@ -127,7 +127,30 @@ export default class Muddy {
       throw Sass.new(`No such file ${mfileObject.url}`)
 
     glog.info(c`Pulling metadata from {other}mfile{/}.`)
-    const mfile = await mfileObject.loadData()
+    // The mfile is plain JSON, as muddler reads it and `muddy version`
+    // rewrites it, so anything else (JSON5, YAML) is rejected here rather than
+    // building a project that the other tools can't read.
+    let mfile
+
+    try {
+      mfile = JSON.parse(await mfileObject.read())
+    } catch(error) {
+      throw Sass.new(`${mfileObject.name} is not valid JSON: ${error.message}`)
+    }
+
+    // Fall back as muddler does, so either tool builds the same package.
+    if(!mfile.package) {
+      mfile.package = projectDirectory.name
+      glog.info(
+        c`Package name not set in {other}mfile{/}, using directory name `+
+        c`{<B}${mfile.package}{B>}.`
+      )
+    }
+
+    if(!mfile.version) {
+      mfile.version = ""
+      glog.info(c`No version set in {other}mfile{/}; building without one.`)
+    }
 
     glog.table(mfile)
 
@@ -246,7 +269,7 @@ export default class Muddy {
    * @returns {Promise<unknown>} Context with pkg (package tree) property
    */
   #mapPackage = async ctx => {
-    const {jsonModules, srcDirectory, kind} = ctx
+    const {jsonModules, srcDirectory} = ctx
     const top = srcDirectory.trail.length
     const maptory = () => new Map([
       ["name", ""],
@@ -269,14 +292,11 @@ export default class Muddy {
     //    folder, and we, on the LAST one, do the full one showing the things
     //    like GUI, but also for ThresholdUI (the nested test one)
     for(const {jsonFile, jsonDefinitions} of jsonModules) {
-      let trail = jsonFile.parent.trail.slice(top + 1)
-
-      // The first element in the trail is the kind directory (e.g. "scripts")
-      // which Mudlet does not represent as a folder node. Strip it so that
-      // directories under the kind (e.g. "GUI", "Test Level 1") become the
-      // first-level children in the package tree.
-      if(trail.length > 0 && trail[0] === kind)
-        trail = trail.slice(1)
+      // Skipping past `top` also drops the kind directory (e.g. "scripts"),
+      // which Mudlet does not represent as a folder node, so directories under
+      // the kind (e.g. "GUI", "Test Level 1") become the first-level children
+      // in the package tree.
+      const trail = jsonFile.parent.trail.slice(top + 1)
 
       // Start from the root package node and walk/create children for each
       // element of the trail so the in-memory tree mirrors the directory tree.
@@ -356,27 +376,50 @@ export default class Muddy {
     if(!jsonFile || !definitions || definitions.length === 0)
       return
 
-    for(const jsonDefinition of definitions) {
-      const {name: scriptName = "", script = ""} = jsonDefinition
+    for(const definition of definitions)
+      await this.#loadDefinitionLua(kind, definition, jsonFile, srcDirectory)
+  }
 
-      if(!scriptName || script)
-        continue
+  /**
+   * Loads the .lua file for one JSON definition, then for each of its nested
+   * `children`. Like muddler, every child's script sits beside the JSON file
+   * that declares it, however deeply the child is nested.
+   *
+   * @private
+   * @param {string} kind - The module type
+   * @param {object} jsonDefinition - The definition to load a script for
+   * @param {FileObject} jsonFile - The JSON file that declared it
+   * @param {DirectoryObject} srcDirectory - The src directory for relative path resolution
+   * @returns {Promise<void>}
+   */
+  #loadDefinitionLua = async(kind, jsonDefinition, jsonFile, srcDirectory) => {
+    const {
+      name: scriptName = "", script = "", children = [], isFolder = "no",
+    } = jsonDefinition
 
-      const expected = `${Lua.fileName(scriptName)}.lua`
-      const scriptFile = jsonFile.parent.getFile(expected)
-      if(!await scriptFile.exists) {
+    for(const child of children)
+      await this.#loadDefinitionLua(kind, child, jsonFile, srcDirectory)
+
+    if(!scriptName || script)
+      return
+
+    const expected = `${Lua.fileName(scriptName)}.lua`
+    const scriptFile = jsonFile.parent.getFile(expected)
+    if(!await scriptFile.exists) {
+      // A folder's script is optional; a leaf without one is worth a warning.
+      if(isFolder !== "yes")
         glog.warn(c`{${kind}}${scriptFile.relativeTo(srcDirectory)}{/} does not exist`)
-        jsonDefinition.script = ""
-      } else {
-        const relative = scriptFile.relativeTo(this.#projectDirectory)
-        glog.success(
-          c`Using content from {<B}${relative}{B>} for {${kind}}${Type.TO_SINGLE[kind]}{/} {<B}${scriptName}{B>}`
-        )
 
-        const loaded = await scriptFile.read()
+      jsonDefinition.script = ""
+    } else {
+      const relative = scriptFile.relativeTo(this.#projectDirectory)
+      glog.success(
+        c`Using content from {<B}${relative}{B>} for {${kind}}${Type.TO_SINGLE[kind]}{/} {<B}${scriptName}{B>}`
+      )
 
-        jsonDefinition.script = loaded
-      }
+      const loaded = await scriptFile.read()
+
+      jsonDefinition.script = loaded
     }
   }
 
@@ -408,24 +451,58 @@ export default class Muddy {
    * @param {Function} cl - The module class constructor
    * @param {object} node - The current package tree node
    * @param {boolean} [isRoot=false] - Whether this is the root node
+   * @param {object|null} [declared] - The JSON entry declaring this node's
+   *   folder, if the parent level has one
+   * @param {Set<object>} [skip] - Declarations already merged into a folder,
+   *   so they don't also build as modules of their own
    * @returns {Array<unknown>} Array of module instances
    */
-  #_createModule = (cl, node, isRoot=false) => {
+  #_createModule = (cl, node, isRoot=false, declared=null, skip=new Set()) => {
     const modules = []
+    const children = node.get("children")
+
+    // A folder entry in this level's JSON that names one of its
+    // subdirectories declares that subdirectory's folder (to keep it disabled,
+    // say, or give it a script). As in muddler, the two build as one group.
+    // Top-level JSON lives on a nameless child node, so look there too.
+    const levelDefinitions = [
+      ...(node.get("definitions") ?? []),
+      ...[...children]
+        .filter(child => child.get("name") === "")
+        .flatMap(child => child.get("definitions") ?? []),
+    ]
+    const declarations = new Map()
+
+    for(const def of levelDefinitions) {
+      if(def.isFolder === "yes" && def.name && !declarations.has(def.name))
+        declarations.set(def.name, def)
+    }
+
+    const merged = new Set(skip)
+    const declarationFor = child => declarations.get(child.get("name"))
+
+    for(const child of children) {
+      if(declarationFor(child))
+        merged.add(declarationFor(child))
+    }
 
     // Recursively build modules for all children of this node and collect
     // their resulting modules.
-    const children = node.get("children")
     for(const child of children) {
-      const childModules = this.#_createModule(cl, child, false)
+      const childModules = this.#_createModule(
+        cl, child, false, declarationFor(child) ?? null, merged
+      )
       modules.push(...childModules)
     }
 
-    // Then this node's own definitions become leaf modules.
+    // Then this node's own definitions become leaf modules, apart from any
+    // declarations merged into a directory's folder above.
     const definitions = node.get("definitions")
     if(definitions && definitions.length > 0) {
-      for(const def of definitions)
-        modules.push(new cl(def, glog))
+      for(const def of definitions) {
+        if(!merged.has(def))
+          modules.push(this.#definitionModule(cl, def))
+      }
     }
 
     // For the root package node we never create a folder wrapper; its modules
@@ -440,15 +517,22 @@ export default class Muddy {
 
     const name = node.get("name") ?? ""
 
-    if(name.length > 0 && modules.length > 0) {
+    if(name.length > 0 && (modules.length > 0 || declared)) {
+      // The declared attributes win over the defaults. The directory's
+      // contents come first among the children, then the declared ones.
+      const {children: declaredChildren = [], ...attributes} = declared ?? {}
       const folder = new cl({
-        name,
-        isFolder: "yes",
         isActive: "yes",
         script: "",
+        ...attributes,
+        name,
+        isFolder: "yes",
       }, glog)
 
       modules.forEach(m => folder.addChild(m))
+
+      for(const child of declaredChildren)
+        folder.addChild(this.#definitionModule(cl, child))
 
       node.set("modules", [folder])
 
@@ -458,6 +542,24 @@ export default class Muddy {
     node.set("modules", modules)
 
     return modules
+  }
+
+  /**
+   * Creates the module for one JSON definition, with modules for its nested
+   * `children` attached beneath it.
+   *
+   * @private
+   * @param {Function} cl - The module class constructor
+   * @param {object} def - The JSON definition
+   * @returns {unknown} The module instance
+   */
+  #definitionModule = (cl, def) => {
+    const module = new cl(def, glog)
+
+    for(const child of def.children ?? [])
+      module.addChild(this.#definitionModule(cl, child))
+
+    return module
   }
 
   /**
@@ -657,7 +759,7 @@ export default class Muddy {
       f => !this.#isIgnored(f.relativeTo(src), ignore)
     )
 
-    await Promised.settle(
+    const settled = await Promised.settle(
       files.map(async file => {
         const relative = file.relativeTo(res)
         const dest = work.getFile(relative)
@@ -665,6 +767,9 @@ export default class Muddy {
         await file.copy(dest.path)
       })
     )
+
+    if(Promised.hasRejected(settled))
+      Promised.throw(`Copying resources.`, settled)
   }
 
   /**
@@ -769,6 +874,8 @@ export default class Muddy {
           entry[k] = "no"
       })
 
+      if(Array.isArray(entry.children))
+        this.#normalizeBooleanValues(entry.children)
     }
 
     return object

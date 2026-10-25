@@ -23,11 +23,17 @@ describe("Lua", () => {
       assert.equal(Lua.longString("x]]y]=]z]==]w"), "[===[x]]y]=]z]==]w]===]")
     })
 
-    it("always produces a delimiter absent from the value (total)", () => {
-      for(const value of ["", "]]", "]=]", "]]]=]]==]", "}}]]==]===]"]) {
+    it("escalates when the value ends in ] so it can't fuse with the closer", () => {
+      assert.equal(Lua.longString("Foo [beta]"), "[=[Foo [beta]]=]")
+      assert.equal(Lua.longString("a]]x]="), "[==[a]]x]=]==]")
+    })
+
+    it("always closes exactly at the end of the value (total)", () => {
+      for(const value of ["", "]", "]]", "]=]", "x]=", "]]]=]]==]", "}}]]==]===]"]) {
         const wrapped = Lua.longString(value)
         const eq = wrapped.match(/^\[(=*)\[/)[1]
-        assert.ok(!value.includes(`]${eq}]`), `level ${eq.length} delim should be absent from ${JSON.stringify(value)}`)
+        const body = wrapped.slice(eq.length + 2)
+        assert.equal(body.indexOf(`]${eq}]`), value.length, `level ${eq.length} should close right after ${JSON.stringify(value)}`)
       }
     })
   })

@@ -22,7 +22,8 @@ export default class MudletModule {
   constructor(object={}) {
     const {name, isFolder="no", isActive="yes", packageName="", script=""} = (object ?? {})
 
-    Valid.type(name, "String", {allowEmpty: false})
+    // Mudlet and muddler both allow an empty name.
+    Valid.type(name, "String")
     Valid.assert(isFolder === "yes" || isFolder === "no", "isFolder must be 'yes' or 'no'.")
     Valid.assert(isActive === "yes" || isActive === "no", "isActive must be 'yes' or 'no'.")
     Valid.type(packageName, "String")
@@ -123,10 +124,10 @@ export default class MudletModule {
     if(this.#meta.get("children").has(child))
       throw Sass.new(`Child '${child}' is already present.`)
 
+    // A leaf keeps its type: children under a Trigger form a chain, and under
+    // a Timer they are offset timers. Only folders are TriggerGroups etc.
     this.#meta.get("children").add(child)
     child.parent = this
-
-    this.#meta.set("isFolder", "yes")
 
     return this
   }
@@ -162,28 +163,39 @@ export default class MudletModule {
   }
 
   /**
-   * Converts this module to an XML fragment for Mudlet package format.
+   * Converts this module to an XML fragment for Mudlet package format: its own
+   * fields from {@link MudletModule#fieldsXMLFragment}, then its children
+   * nested after them, the way Mudlet and muddler both export.
    *
    * @returns {import("xmlbuilder2").XMLBuilder}
    */
   toXMLFragment() {
+    const frag = this.fieldsXMLFragment()
+    const root = frag.first()
+
+    for(const child of this.children)
+      root.import(child.toXMLFragment())
+
+    return frag
+  }
+
+  /**
+   * Builds the element for this module with its own fields and no children.
+   * Subclasses extend it with their type's fields, in schema order.
+   *
+   * @returns {import("xmlbuilder2").XMLBuilder}
+   */
+  fieldsXMLFragment() {
     const kind = this.constructor.name.toLowerCase()
     const baseName = Util.capitalize(kind)
     const tag = this.isFolder === "yes" ? `${baseName}Group` : baseName
     const frag = fragment()
-    const children = this.children
 
-    const root = frag
+    frag
       .ele(tag, {isActive: this.isActive, isFolder: this.isFolder})
       .ele("name").txt(xmlText(this.name)).up()
       .ele("script").txt(xmlText(this.script)).up()
       .ele("packageName").txt(xmlText(this.packageName)).up()
-
-    // If this is a folder, serialize its children as nested modules.
-    if(this.isFolder === "yes" && children && children.size > 0) {
-      for(const child of children)
-        root.import(child.toXMLFragment())
-    }
 
     return frag
   }

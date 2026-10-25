@@ -5,6 +5,7 @@ import path from "node:path"
 import readline from "node:readline"
 
 import Helper from "./Helper.js"
+import Lua from "./Lua.js"
 
 /**
  * @typedef {object} GenerateOptions
@@ -302,8 +303,7 @@ class Generate {
       ], null, 2) + "\n"
     )
 
-    const safeName = this.#luaSafe(opts.name)
-    await dir.getFile(`${safeName}.lua`).write(
+    await dir.getFile(`${Lua.fileName(opts.name)}.lua`).write(
       `echo([[\n`
       + `  A circus performer named Brian\n`
       + `  Once smiled as he rode on a lion\n`
@@ -415,9 +415,7 @@ class Generate {
       ], null, 2) + "\n"
     )
 
-    const safeName = this.#luaSafe(opts.name)
-    const timerLua = `${safeName}_anti_idle`
-    await dir.getFile(`${timerLua}.lua`).write(
+    await dir.getFile(`${Lua.fileName(`${opts.name} anti idle`)}.lua`).write(
       `if not hasFocus() then\n`
       + `  send("ql")\n`
       + `end\n`

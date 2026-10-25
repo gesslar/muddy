@@ -1,19 +1,37 @@
 import {DirectoryObject, Sass, Util, Valid} from "@gesslar/toolkit"
 
 /**
+ * @typedef {object} VersionTarget
+ * @property {DirectoryObject} project - The project directory.
+ * @property {import("@gesslar/toolkit").FileObject} [mfile] - An alternate
+ *   mfile; the project's own `mfile` when absent.
+ */
+
+/**
+ * @typedef {object} VersionOptions
+ * @property {DirectoryObject} [project] - The project directory; the current
+ *   directory when absent.
+ * @property {import("@gesslar/toolkit").FileObject} [mfile] - An alternate mfile.
+ * @property {boolean} [syncPackage] - Also write the new version to the
+ *   project's package.json.
+ * @property {boolean} [warn] - Emit a warning when --package finds nothing to
+ *   sync. Disabled by --no-warn.
+ */
+
+/**
  * Reads, bumps, and sets the SemVer in a project's mfile, in place.
  */
 export default class Version {
   /**
-   * Locate the mfile in the current working directory and pull its current
-   * version. Throws if either the file or the version field is missing.
+   * Locate the target's mfile (its alternate mfile, or the project's own) and
+   * pull its current version. Throws if either the file or the version field is
+   * missing.
    *
+   * @param {VersionTarget} target - The project and mfile to work on.
    * @returns {Promise<{mfile: import("@gesslar/toolkit").FileObject, version: string}>}
    * @private
    */
-  static async #loadMfile() {
-    const cwd = DirectoryObject.fromCwd()
-    const mfile = cwd.getFile("mfile")
+  static async #loadMfile({project, mfile = project.getFile("mfile")}) {
 
     if(!await mfile.exists)
       throw Sass.new(`No such file ${mfile}`)
@@ -182,19 +200,19 @@ export default class Version {
    *
    * @param {string} newVersion - The version that was written to the mfile.
    * @param {import("@gesslar/toolkit").Glog} glog - Logger instance.
+   * @param {DirectoryObject} project - The project whose package.json to sync.
    * @param {boolean} [warn] - Whether to emit warnings when there is nothing to
    *   sync (no package.json, invalid JSON, or no "version" key). Disabled by
    *   --no-warn.
    * @returns {Promise<void>}
    * @private
    */
-  static async #syncPackage(newVersion, glog, warn = true) {
-    const cwd = DirectoryObject.fromCwd()
-    const pkg = cwd.getFile("package.json")
+  static async #syncPackage(newVersion, glog, project, warn = true) {
+    const pkg = project.getFile("package.json")
 
     if(!await pkg.exists) {
       if(warn)
-        glog.warn(`--package was specified, but no package.json found in ${cwd}`)
+        glog.warn(`--package was specified, but no package.json found in ${project}`)
 
       return
     }
@@ -225,18 +243,18 @@ export default class Version {
   }
 
   /**
-   * Increment the SemVer in the current directory's mfile and write it back.
+   * Increment the SemVer in the project's mfile and write it back.
    *
    * @param {"major"|"minor"|"patch"} kind - Which component to bump.
    * @param {import("@gesslar/toolkit").Glog} glog - Logger instance.
-   * @param {boolean} [syncPackage] - Also write the new version to a sibling
-   *   package.json.
-   * @param {boolean} [warn] - Emit a warning when --package finds nothing to
-   *   sync. Disabled by --no-warn.
+   * @param {VersionOptions} [options] - Target project and sync behaviour.
    * @returns {Promise<void>}
    */
-  static async increment(kind, glog, syncPackage = false, warn = true) {
-    const {mfile, version} = await this.#loadMfile()
+  static async increment(kind, glog, options = {}) {
+    const {
+      syncPackage = false, warn = true, ...target
+    } = Version.#target(options)
+    const {mfile, version} = await this.#loadMfile(target)
 
     glog.info(`Found ${mfile}`)
 
@@ -260,17 +278,18 @@ export default class Version {
     await this.#writeVersion(mfile, version, newVersion, glog)
 
     if(syncPackage)
-      await this.#syncPackage(newVersion, glog, warn)
+      await this.#syncPackage(newVersion, glog, target.project, warn)
   }
 
   /**
    * Print the current SemVer from the mfile to stdout. Plain output (no log
    * prefix) so it's friendly to shell capture: VERSION=$(muddy version current)
    *
+   * @param {VersionOptions} [options] - Target project.
    * @returns {Promise<void>}
    */
-  static async current() {
-    const {version} = await this.#loadMfile()
+  static async current(options = {}) {
+    const {version} = await this.#loadMfile(Version.#target(options))
 
     console.log(version)
   }
@@ -280,20 +299,31 @@ export default class Version {
    *
    * @param {string} newVersion - The SemVer to write (must be basic x.y.z form).
    * @param {import("@gesslar/toolkit").Glog} glog - Logger instance.
-   * @param {boolean} [syncPackage] - Also write the new version to a sibling
-   *   package.json.
-   * @param {boolean} [warn] - Emit a warning when --package finds nothing to
-   *   sync. Disabled by --no-warn.
+   * @param {VersionOptions} [options] - Target project and sync behaviour.
    * @returns {Promise<void>}
    */
-  static async set(newVersion, glog, syncPackage = false, warn = true) {
+  static async set(newVersion, glog, options = {}) {
     Valid.assert(Util.semver.basic.test(newVersion), `Invalid SemVer format '${newVersion}'`)
 
-    const {mfile, version} = await this.#loadMfile()
+    const {
+      syncPackage = false, warn = true, ...target
+    } = Version.#target(options)
+    const {mfile, version} = await this.#loadMfile(target)
 
     await this.#writeVersion(mfile, version, newVersion, glog)
 
     if(syncPackage)
-      await this.#syncPackage(newVersion, glog, warn)
+      await this.#syncPackage(newVersion, glog, target.project, warn)
+  }
+
+  /**
+   * Fills in the project directory, defaulting to the current one.
+   *
+   * @param {VersionOptions} options - The caller's options.
+   * @returns {VersionOptions & VersionTarget} The options with a project.
+   * @private
+   */
+  static #target({project = DirectoryObject.fromCwd(), ...rest}) {
+    return {project, ...rest}
   }
 }

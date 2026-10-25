@@ -1,7 +1,7 @@
 /**
- * Qt::Key values. The key names here match what `QKeySequence::toString()`
- * (and therefore the Mudlet "grab key" button) prints, so users can copy
- * what they see in Mudlet directly.
+ * Qt::Key values. The key names here match Mudlet's own key names
+ * (`KeyUnit::setupKeyNames`, which the "grab key" button prints, and
+ * `mudlet.key` in Lua), so users can copy what they see in Mudlet directly.
  */
 export const KEY_CODES = Object.freeze({
   // Letters
@@ -52,6 +52,108 @@ export const KEY_CODES = Object.freeze({
   Question: 63, At: 64, BracketLeft: 91, Backslash: 92, BracketRight: 93,
   AsciiCircum: 94, Underscore: 95, QuoteLeft: 96, BraceLeft: 123,
   Bar: 124, BraceRight: 125, AsciiTilde: 126,
+
+  // Extra editing
+  SysReq: 0x0100000a, Clear: 0x0100000b,
+
+  // Locks and AltGr. Bare Shift/Control/Alt/Meta are left out: they are
+  // modifier words in a chord, and Mudlet's key grab skips them too.
+  AltGr: 0x01001103, CapsLock: 0x01000024, NumLock: 0x01000025,
+  ScrollLock: 0x01000026,
+
+  // More function keys
+  F25: 0x01000048, F26: 0x01000049, F27: 0x0100004a, F28: 0x0100004b,
+  F29: 0x0100004c, F30: 0x0100004d, F31: 0x0100004e, F32: 0x0100004f,
+  F33: 0x01000050, F34: 0x01000051, F35: 0x01000052,
+
+  // Extra keys
+  Super_L: 0x01000053, Super_R: 0x01000054, Menu: 0x01000055,
+  Hyper_L: 0x01000056, Hyper_R: 0x01000057, Help: 0x01000058,
+  Direction_L: 0x01000059, Direction_R: 0x01000060,
+
+  // Latin-1
+  nobreakspace: 0xa0, exclamdown: 0xa1, cent: 0xa2, sterling: 0xa3,
+  currency: 0xa4, yen: 0xa5, brokenbar: 0xa6, section: 0xa7, diaeresis: 0xa8,
+  copyright: 0xa9, ordfeminine: 0xaa, guillemotleft: 0xab, notsign: 0xac,
+  hyphen: 0xad, registered: 0xae, macron: 0xaf, degree: 0xb0, plusminus: 0xb1,
+  twosuperior: 0xb2, threesuperior: 0xb3, acute: 0xb4, mu: 0xb5,
+  paragraph: 0xb6, periodcentered: 0xb7, cedilla: 0xb8, onesuperior: 0xb9,
+  masculine: 0xba, guillemotright: 0xbb, onequarter: 0xbc, onehalf: 0xbd,
+  threequarters: 0xbe, questiondown: 0xbf, Agrave: 0xc0, Aacute: 0xc1,
+  Acircumflex: 0xc2, Atilde: 0xc3, Adiaeresis: 0xc4, Aring: 0xc5, AE: 0xc6,
+  Ccedilla: 0xc7, Egrave: 0xc8, Eacute: 0xc9, Ecircumflex: 0xca,
+  Ediaeresis: 0xcb, Igrave: 0xcc, Iacute: 0xcd, Icircumflex: 0xce,
+  Idiaeresis: 0xcf, ETH: 0xd0, Ntilde: 0xd1, Ograve: 0xd2, Oacute: 0xd3,
+  Ocircumflex: 0xd4, Otilde: 0xd5, Odiaeresis: 0xd6, multiply: 0xd7,
+  Ooblique: 0xd8, Ugrave: 0xd9, Uacute: 0xda, Ucircumflex: 0xdb,
+  Udiaeresis: 0xdc, Yacute: 0xdd, THORN: 0xde, ssharp: 0xdf, division: 0xf7,
+  ydiaeresis: 0xff,
+
+  // International input (IME, compose, dead keys)
+  Multi_key: 0x01001120, Codeinput: 0x01001137, SingleCandidate: 0x0100113c,
+  MultipleCandidate: 0x0100113d, PreviousCandidate: 0x0100113e,
+  Mode_switch: 0x0100117e, Kanji: 0x01001121, Muhenkan: 0x01001122,
+  Henkan: 0x01001123, Romaji: 0x01001124, Hiragana: 0x01001125,
+  Katakana: 0x01001126, Hiragana_Katakana: 0x01001127, Zenkaku: 0x01001128,
+  Hankaku: 0x01001129, Zenkaku_Hankaku: 0x0100112a, Touroku: 0x0100112b,
+  Massyo: 0x0100112c, Kana_Lock: 0x0100112d, Kana_Shift: 0x0100112e,
+  Eisu_Shift: 0x0100112f, Eisu_toggle: 0x01001130, Hangul: 0x01001131,
+  Hangul_Start: 0x01001132, Hangul_End: 0x01001133, Hangul_Hanja: 0x01001134,
+  Hangul_Jamo: 0x01001135, Hangul_Romaja: 0x01001136,
+  Hangul_Jeonja: 0x01001138, Hangul_Banja: 0x01001139,
+  Hangul_PreHanja: 0x0100113a, Hangul_PostHanja: 0x0100113b,
+  Hangul_Special: 0x0100113f, Dead_Grave: 0x01001250, Dead_Acute: 0x01001251,
+  Dead_Circumflex: 0x01001252, Dead_Tilde: 0x01001253,
+  Dead_Macron: 0x01001254, Dead_Breve: 0x01001255, Dead_Abovedot: 0x01001256,
+  Dead_Diaeresis: 0x01001257, Dead_Abovering: 0x01001258,
+  Dead_Doubleacute: 0x01001259, Dead_Caron: 0x0100125a,
+  Dead_Cedilla: 0x0100125b, Dead_Ogonek: 0x0100125c, Dead_Iota: 0x0100125d,
+  Dead_Voiced_Sound: 0x0100125e, Dead_Semivoiced_Sound: 0x0100125f,
+  Dead_Belowdot: 0x01001260, Dead_Hook: 0x01001261, Dead_Horn: 0x01001262,
+
+  // Multimedia and launch keys
+  AltGr: 0x01001103, Multi_key: 0x01001120, Codeinput: 0x01001137,
+  SingleCandidate: 0x0100113c, MultipleCandidate: 0x0100113d,
+  PreviousCandidate: 0x0100113e, Mode_switch: 0x0100117e, Kanji: 0x01001121,
+  Muhenkan: 0x01001122, Henkan: 0x01001123, Romaji: 0x01001124,
+  Hiragana: 0x01001125, Katakana: 0x01001126, Hiragana_Katakana: 0x01001127,
+  Zenkaku: 0x01001128, Hankaku: 0x01001129, Zenkaku_Hankaku: 0x0100112a,
+  Touroku: 0x0100112b, Massyo: 0x0100112c, Kana_Lock: 0x0100112d,
+  Kana_Shift: 0x0100112e, Eisu_Shift: 0x0100112f, Eisu_toggle: 0x01001130,
+  Hangul: 0x01001131, Hangul_Start: 0x01001132, Hangul_End: 0x01001133,
+  Hangul_Hanja: 0x01001134, Hangul_Jamo: 0x01001135,
+  Hangul_Romaja: 0x01001136, Hangul_Jeonja: 0x01001138,
+  Hangul_Banja: 0x01001139, Hangul_PreHanja: 0x0100113a,
+  Hangul_PostHanja: 0x0100113b, Hangul_Special: 0x0100113f,
+  Dead_Grave: 0x01001250, Dead_Acute: 0x01001251, Dead_Circumflex: 0x01001252,
+  Dead_Tilde: 0x01001253, Dead_Macron: 0x01001254, Dead_Breve: 0x01001255,
+  Dead_Abovedot: 0x01001256, Dead_Diaeresis: 0x01001257,
+  Dead_Abovering: 0x01001258, Dead_Doubleacute: 0x01001259,
+  Dead_Caron: 0x0100125a, Dead_Cedilla: 0x0100125b, Dead_Ogonek: 0x0100125c,
+  Dead_Iota: 0x0100125d, Dead_Voiced_Sound: 0x0100125e,
+  Dead_Semivoiced_Sound: 0x0100125f, Dead_Belowdot: 0x01001260,
+  Dead_Hook: 0x01001261, Dead_Horn: 0x01001262, Back: 0x01000061,
+  Forward: 0x01000062, Stop: 0x01000063, Refresh: 0x01000064,
+  VolumeDown: 0x01000070, VolumeMute: 0x01000071, VolumeUp: 0x01000072,
+  BassBoost: 0x01000073, BassUp: 0x01000074, BassDown: 0x01000075,
+  TrebleUp: 0x01000076, TrebleDown: 0x01000077, MediaPlay: 0x01000080,
+  MediaStop: 0x01000081, MediaPrevious: 0x01000082, MediaNext: 0x01000083,
+  MediaRecord: 0x01000084, HomePage: 0x01000090, Favorites: 0x01000091,
+  Search: 0x01000092, Standby: 0x01000093, OpenUrl: 0x01000094,
+  LaunchMail: 0x010000a0, LaunchMedia: 0x010000a1, Launch0: 0x010000a2,
+  Launch1: 0x010000a3, Launch2: 0x010000a4, Launch3: 0x010000a5,
+  Launch4: 0x010000a6, Launch5: 0x010000a7, Launch6: 0x010000a8,
+  Launch7: 0x010000a9, Launch8: 0x010000aa, Launch9: 0x010000ab,
+  LaunchA: 0x010000ac, LaunchB: 0x010000ad, LaunchC: 0x010000ae,
+  LaunchD: 0x010000af, LaunchE: 0x010000b0, LaunchF: 0x010000b1,
+  MediaLast: 0x0100ffff,
+
+  // Device keys
+  Call: 0x01100004, Context1: 0x01100000, Context2: 0x01100001,
+  Context3: 0x01100002, Context4: 0x01100003, Flip: 0x01100006,
+  Hangup: 0x01100005, No: 0x01010002, Select: 0x01010000, Yes: 0x01010001,
+  Execute: 0x01020003, Printer: 0x01020002, Play: 0x01020005,
+  Sleep: 0x01020004, Zoom: 0x01020006, Cancel: 0x01020001,
 })
 
 /**
@@ -80,6 +182,7 @@ export const KEY_ALIASES = Object.freeze({
   ARROWRIGHT: "Right",
   ARROWUP: "Up",
   ARROWDOWN: "Down",
+  NBSP: "nobreakspace", // mudlet.key spells it "nbsp"
 
   // Typed symbols -> Qt names
   "!": "Exclam",

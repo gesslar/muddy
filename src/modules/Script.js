@@ -46,8 +46,8 @@ export default class Script extends MudletModule {
     )
   }
 
-  toXMLFragment() {
-    const frag = super.toXMLFragment()
+  fieldsXMLFragment() {
+    const frag = super.fieldsXMLFragment()
 
     // Add eventHandlerList as a container with string children
     const handlerList = frag.last().ele("eventHandlerList")

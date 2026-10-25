@@ -1,6 +1,6 @@
 import {ActionBuilder as AB, ACTIVITY, ActionRunner as AR} from "@gesslar/actioneer"
 import c from "@gesslar/colours"
-import {DirectoryObject, Sass, Util, Valid} from "@gesslar/toolkit"
+import {DirectoryObject, FileSystem, Sass, Util, Valid} from "@gesslar/toolkit"
 import AdmZip from "adm-zip"
 import {mkdtempSync} from "node:fs"
 import os from "node:os"
@@ -31,7 +31,7 @@ let /** @type {Glog} */ glog
  * Stands in for `&` while xmlbuilder2 parses (see {@link shieldEntities}).
  * A private-use code point, so it can't collide with real markup.
  */
-const AMP = ""
+const AMP = "\uE000"
 
 const ENTITIES = Object.freeze({amp: "&", lt: "<", gt: ">", quot: "\"", apos: "'"})
 
@@ -54,21 +54,27 @@ const shieldEntities = xml =>
 
 /**
  * Decodes the entity references {@link shieldEntities} left in a value, in a
- * single pass. An unknown named entity keeps its literal text. That is how a
+ * single pass. An unknown named entity, a character reference outside the
+ * Unicode scalar range, or a bare `&` keeps its literal text. That is how a
  * raw `&nbsp;` in a package built by an older muddy comes back.
  *
  * @param {string} value - Shielded text
  * @returns {string} The decoded text
  */
 const decodeEntities = value =>
-  value.replace(/(?:#x([0-9a-fA-F]+)|#(\d+)|(\w+));/g, (match, hex, dec, name) => {
-    if(hex)
-      return String.fromCodePoint(parseInt(hex, 16))
+  value.replace(/\uE000(?:(?:#x([0-9a-fA-F]+)|#(\d+)|(\w+));)?/g, (match, hex, dec, name) => {
+    if(hex || dec) {
+      const point = hex ? parseInt(hex, 16) : parseInt(dec, 10)
 
-    if(dec)
-      return String.fromCodePoint(parseInt(dec, 10))
+      // Lone surrogates can't be written out as UTF-8, so they stay literal.
+      if(point <= 0x10FFFF && (point < 0xD800 || point > 0xDFFF))
+        return String.fromCodePoint(point)
+    } else if(name && Object.hasOwn(ENTITIES, name)) {
+      return ENTITIES[name]
+    }
 
-    return Object.hasOwn(ENTITIES, name) ? ENTITIES[name] : `&${name};`
+    // Anything undecoded, a bare `&` included, keeps its literal text.
+    return `&${match.slice(AMP.length)}`
   })
 
 /**
@@ -131,6 +137,55 @@ const field = (node, key) => {
 }
 
 /**
+ * Folds xmlbuilder2's mixed-content `"#"` entries back into one object, so a
+ * module's fields read as direct keys whichever form it parsed into. The first
+ * occurrence of a tag wins, as {@link field} does. Child modules are read
+ * separately by {@link Unpack.#childrenOf}, which keeps their order.
+ *
+ * @param {object} node - The parsed element
+ * @returns {object} The element with its `"#"` fields lifted to the top
+ */
+const fields = node => {
+  if(!Array.isArray(node?.["#"]))
+    return node
+
+  const entries = node["#"].filter(entry => entry && typeof entry === "object")
+
+  return Object.assign({}, ...entries.reverse(), node)
+}
+
+/** Lua 5.1's single-character string escapes. */
+const LUA_ESCAPES = Object.freeze({
+  a: "\x07", b: "\b", f: "\f", n: "\n", r: "\r", t: "\t", v: "\v",
+  "\\": "\\", "\"": "\"", "'": "'", "\n": "\n",
+})
+
+/**
+ * Decodes the escapes in the body of a quoted Lua 5.1 string. `\ddd` names a
+ * byte, so the work is done on the UTF-8 bytes and decoded back at the end,
+ * letting a multi-byte character spelled as escapes come out whole. Lua turns
+ * any other escaped character into itself; a `\ddd` past 255 is a Lua error,
+ * so it is left as written.
+ *
+ * @param {string} body - The text between the quotes
+ * @returns {string} The string's value
+ */
+const decodeLuaEscapes = body => {
+  const bytes = Buffer.from(body, "utf8").toString("latin1")
+  const decoded = bytes.replace(/\\(\d{1,3}|[\s\S])/g, (match, escape) => {
+    if(/^\d/.test(escape)) {
+      const byte = Number(escape)
+
+      return byte <= 255 ? String.fromCharCode(byte) : match
+    }
+
+    return LUA_ESCAPES[escape] ?? escape
+  })
+
+  return Buffer.from(decoded, "latin1").toString("utf8")
+}
+
+/**
  * Normalizes an xmlbuilder2 object-format value into an array. A single child
  * parses to an object, multiple children to an array; this collapses both.
  *
@@ -168,6 +223,22 @@ export default class Unpack {
   #projectDirectory
   /** @type {{ helper: boolean, readme: boolean }} */
   #options
+  /**
+   * Names taken in each directory so far, keyed by path, then by lower-cased
+   * name so the project works on case-insensitive filesystems too.
+   *
+   * @type {Map<string, Map<string, {as: "directory"|"file", name: string, owner: string}>>}
+   */
+  #claims = new Map()
+  /**
+   * JSON entries gathered for each directory, written once every module has
+   * been placed, so folders merged into one directory share one JSON file.
+   *
+   * @type {Map<string, {directory: DirectoryObject, kind: string, entries: Array<object>}>}
+   */
+  #pending = new Map()
+  /** @type {Map<string, string>} See {@link Unpack.#bareFolder}. */
+  #bareFolders = new Map()
 
   /**
    * Unpacks an mpackage into a project directory.
@@ -281,21 +352,12 @@ export default class Unpack {
   #getMpackageName = ctx => {
     glog.info("Extracting package name from config.lua")
 
-    const {configData} = ctx
+    const {mpackage} = this.#parseConfig(ctx.configData)
 
-    // Match either a Lua long string at any bracket level — `[[..]]`, `[=[..]=]`,
-    // … — or a quoted string. The build writes every config value through
-    // Lua.longString, which escalates the level when the value contains `]]`, so
-    // a package name carrying `]]` arrives as `[=[..]=]`; the `\1` backreference
-    // pairs the closing delimiter to the opening level. Mirrors #parseConfig.
-    const {bracketName, quoteName} =
-      /^\s*mpackage\s*=\s*(?:\[(=*)\[(?<bracketName>[\s\S]*?)\]\1\]|(?<quote>['"])(?<quoteName>[\s\S]*?)\k<quote>)$/gm
-        .exec(configData)?.groups ?? {}
-
-    if(!bracketName && !quoteName)
+    if(!mpackage)
       throw Sass.new("No 'mpackage' field found in config.lua")
 
-    ctx.packageName = bracketName || quoteName
+    ctx.packageName = mpackage
 
     glog.success(c`Package name is {other}${ctx.packageName}{/}`)
 
@@ -373,6 +435,7 @@ export default class Unpack {
 
       const kindDirectory = srcDirectory.getDirectory(kind)
       await this.#writeNodes(single, kind, nodes, kindDirectory)
+      await this.#writePending()
     }
 
     return ctx
@@ -430,49 +493,279 @@ export default class Unpack {
    * @returns {Promise<void>}
    */
   #writeNodes = async(single, kind, nodes, directory) => {
-    const entries = []
+    const entries = this.#entriesFor(kind, directory)
 
     for(const {node, isFolder} of nodes) {
       if(isFolder) {
         const name = field(node, "name")
-        const childNodes = this.#childrenOf(node, single)
 
-        await this.#writeNodes(
-          single, kind, childNodes, directory.getDirectory(name)
-        )
+        const placement = this.#directoryFor(directory, name)
 
-        continue
+        if(placement) {
+          if(placement === "new") {
+            const declaration =
+              await this.#declareFolder(single, kind, node, directory)
+
+            if(declaration)
+              entries.push(declaration)
+          }
+
+          await this.#writeNodes(
+            single, kind, this.#childrenOf(node, single),
+            directory.getDirectory(name)
+          )
+
+          continue
+        }
       }
 
-      const definition = this.#reverseDefinition(single, node)
-      const script = text(node.script)
+      entries.push(
+        await this.#writeDefinition(single, kind, node, isFolder, directory)
+      )
+    }
+  }
 
+  /**
+   * The JSON entries for a directory, starting a list on first use. The JSON
+   * file's own name is claimed then, so no module can take it.
+   *
+   * @private
+   * @param {string} kind - The plural module type
+   * @param {DirectoryObject} directory - The directory
+   * @returns {Array<object>} The entries gathered for it
+   */
+  #entriesFor = (kind, directory) => {
+    if(!this.#pending.has(directory.path)) {
+      this.#pending.set(directory.path, {directory, kind, entries: []})
+      this.#claim(directory, Type.FILES[kind], "file", Type.FILES[kind])
+    }
+
+    return this.#pending.get(directory.path).entries
+  }
+
+  /**
+   * Records a name as taken in a directory, unless something already holds
+   * it (compared without case).
+   *
+   * @private
+   * @param {DirectoryObject} directory - The directory
+   * @param {string} name - The directory or file name
+   * @param {"directory"|"file"} as - What the name is taken as
+   * @param {string} owner - The module taking it, for diagnostics
+   * @returns {{as: string, name: string, owner: string}|undefined} The earlier claim, if any
+   */
+  #claim = (directory, name, as, owner) => {
+    if(!this.#claims.has(directory.path))
+      this.#claims.set(directory.path, new Map())
+
+    const claims = this.#claims.get(directory.path)
+    const key = name.toLowerCase()
+    const prior = claims.get(key)
+
+    if(!prior)
+      claims.set(key, {as, name, owner})
+
+    return prior
+  }
+
+  /**
+   * Whether a folder can unpack as a subdirectory named after it. That takes
+   * a name the filesystem keeps exactly as written, not already taken by a
+   * file or a differently-cased folder. A folder repeating an exact sibling
+   * name shares that directory, merged, as muddler merges them on build.
+   *
+   * @private
+   * @param {DirectoryObject} directory - The parent directory
+   * @param {string} name - The folder name
+   * @returns {"new"|"merge"|false} Whether the folder gets a directory of its
+   *   own, shares one with a same-named sibling, or stays in the JSON
+   */
+  #directoryFor = (directory, name) => {
+    if(!name || FileSystem.sanitize(name) !== name)
+      return false
+
+    const prior = this.#claim(directory, name, "directory", name)
+
+    if(!prior)
+      return "new"
+
+    if(prior.as === "directory" && prior.name === name) {
+      glog.warn(
+        `Folder '${name}' appears more than once in `+
+        `${directory.relativeTo(this.#projectDirectory)}; merged their contents.`
+      )
+
+      return "merge"
+    }
+
+    return false
+  }
+
+  /**
+   * A directory carries a folder's contents but not its own settings. When
+   * the folder differs from what a bare directory builds as (it is disabled,
+   * has a script, a trigger group's patterns, an alias group's regex, …),
+   * declare it beside its directory: an entry in the parent's JSON, its script
+   * in the parent's `.lua`. The build merges the two back into one group, as
+   * muddler does.
+   *
+   * @private
+   * @param {string} single - The singular module type
+   * @param {string} kind - The plural module type
+   * @param {object} node - The parsed folder node
+   * @param {DirectoryObject} directory - The parent directory
+   * @returns {Promise<object|null>} The declaration, or null when none is needed
+   */
+  #declareFolder = async(single, kind, node, directory) => {
+    const script = field(node, "script")
+    const declaration = {
+      ...this.#reverseDefinition(single, fields(node)),
+      isFolder: "yes",
+    }
+    const {name: _name, ...settings} = declaration
+
+    if(!script && JSON.stringify(settings) === this.#bareFolder(single, kind))
+      return null
+
+    await this.#writeScript(kind, declaration, script, directory)
+
+    return declaration
+  }
+
+  /**
+   * Writes the JSON file for every directory that gathered entries.
+   *
+   * @private
+   * @returns {Promise<void>}
+   */
+  #writePending = async() => {
+    for(const {directory, kind, entries} of this.#pending.values()) {
+      if(entries.length === 0)
+        continue
+
+      await directory.assureExists({recursive: true})
+
+      const jsonFile = directory.getFile(Type.FILES[kind])
+      await jsonFile.write(`${JSON.stringify(entries, null, 2)}\n`)
+      glog.success(
+        c`Wrote {${kind}}${jsonFile.relativeTo(this.#projectDirectory)}{/} `+
+        `(${entries.length} item${entries.length == 1 ? "" : "s"})`
+      )
+    }
+
+    this.#pending.clear()
+  }
+
+  /**
+   * Builds the JSON definition for a module node and writes its `.lua` into
+   * the directory. Modules nested under a leaf (a trigger chain, offset timers)
+   * become its `children`, folders among them included, with their scripts
+   * beside the same JSON file — muddler's layout for nested children.
+   *
+   * @private
+   * @param {string} single - The singular module type
+   * @param {string} kind - The plural module type
+   * @param {object} node - The parsed module node
+   * @param {boolean} isFolder - Whether the node is a group element
+   * @param {DirectoryObject} directory - The directory holding the JSON file
+   * @returns {Promise<object>} The JSON definition
+   */
+  #writeDefinition = async(single, kind, node, isFolder, directory) => {
+    const definition = isFolder
+      ? {
+        name: field(node, "name"),
+        isActive: attr(node, "isActive") ?? "yes",
+        isFolder: "yes",
+      }
+      : this.#reverseDefinition(single, fields(node))
+    const script = field(node, "script")
+
+    await this.#writeScript(kind, definition, script, directory)
+
+    const children = this.#childrenOf(node, single)
+
+    if(children.length > 0) {
+      definition.children = []
+
+      for(const child of children) {
+        definition.children.push(await this.#writeDefinition(
+          single, kind, child.node, child.isFolder, directory
+        ))
+      }
+    }
+
+    return definition
+  }
+
+  /**
+   * What a folder built from a bare directory reads back as, settings only,
+   * serialized for comparison. Made by building that folder and reading its
+   * XML the way a package is read, so it tracks the modules' own defaults.
+   *
+   * @private
+   * @param {string} single - The singular module type
+   * @param {string} kind - The plural module type
+   * @returns {string} The bare folder's settings as JSON
+   */
+  #bareFolder = (single, kind) => {
+    if(!this.#bareFolders.has(kind)) {
+      const folder = new Type.CLASS[kind]({name: "bare", isFolder: "yes"}, glog)
+      const xml = folder.toXMLFragment().end()
+      const parsed = create(shieldEntities(xml)).end({format: "object"})
+      const node = parsed[`${Util.capitalize(single)}Group`]
+      const {name: _name, ...settings} = {
+        ...this.#reverseDefinition(single, fields(node)),
+        isFolder: "yes",
+      }
+
+      this.#bareFolders.set(kind, JSON.stringify(settings))
+    }
+
+    return this.#bareFolders.get(kind)
+  }
+
+  /**
+   * Gives a module its sibling `.lua`, or keeps the script inline in its JSON
+   * entry when the filename is taken or the name has none.
+   *
+   * @private
+   * @param {string} kind - The plural module type
+   * @param {object} definition - The module's JSON definition
+   * @param {string} script - The module's script
+   * @param {DirectoryObject} directory - The directory holding the JSON file
+   * @returns {Promise<void>}
+   */
+  #writeScript = async(kind, definition, script, directory) => {
+    const base = Lua.fileName(definition.name)
+    const fileName = base && `${base}.lua`
+    const prior = fileName
+      && this.#claim(directory, fileName, "file", definition.name)
+
+    if(fileName && !prior) {
       // Always lay down a sibling .lua so every JSON entry has the file muddy
       // reloads by name — an empty script becomes an empty stub, matching what
       // `muddy --add` creates, so the project rebuilds without warnings. Only
       // announce the ones that actually carry content to keep output quiet.
       await directory.assureExists({recursive: true})
 
-      const luaFile = directory.getFile(`${Lua.fileName(definition.name)}.lua`)
+      const luaFile = directory.getFile(fileName)
       await luaFile.write(script)
 
       if(script)
         glog.success(c`Wrote {${kind}}${luaFile.relativeTo(this.#projectDirectory)}{/}`)
 
-      entries.push(definition)
+      return
     }
 
-    if(entries.length === 0)
-      return
-
-    await directory.assureExists({recursive: true})
-
-    const jsonFile = directory.getFile(Type.FILES[kind])
-    await jsonFile.write(`${JSON.stringify(entries, null, 2)}\n`)
-    glog.success(
-      c`Wrote {${kind}}${jsonFile.relativeTo(this.#projectDirectory)}{/} `+
-      `(${entries.length} item${entries.length == 1 ? "" : "s"})`
-    )
+    // muddy and muddler only read the .lua for an entry with no inline script.
+    if(script) {
+      definition.script = script
+    } else if(prior) {
+      glog.warn(
+        `'${definition.name}' shares ${fileName} with '${prior.owner}' and `+
+        `has no script of its own; a rebuild will give it that script.`
+      )
+    }
   }
 
   /**
@@ -529,7 +822,8 @@ export default class Unpack {
 
         definition.keys = this.#reverseKeys(
           parseInt(text(node.keyCode), 10),
-          parseInt(text(node.keyModifier), 10)
+          parseInt(text(node.keyModifier), 10),
+          definition.name
         )
 
         break
@@ -593,9 +887,11 @@ export default class Unpack {
       definition.highlightBG = text(node.mBgColor)
     }
 
+    // The build turns any soundFile into isSoundTrigger="yes", so a disabled
+    // sound only survives the round trip by leaving it out.
     const soundFile = text(node.mSoundFile)
 
-    if(soundFile)
+    if(attr(node, "isSoundTrigger") === "yes" && soundFile)
       definition.soundFile = soundFile
   }
 
@@ -606,16 +902,23 @@ export default class Unpack {
    * @private
    * @param {number} keyCode - The Qt key code
    * @param {number} keyModifier - The Qt modifier bitmask
+   * @param {string} ownerName - Name of the owning Key, for diagnostics
    * @returns {string} The chord string, or "" when there is no bound key
    */
-  #reverseKeys = (keyCode, keyModifier) => {
+  #reverseKeys = (keyCode, keyModifier, ownerName) => {
     if(!keyCode || keyCode === KEY_UNKNOWN)
       return ""
 
     const name = KEY_CODE_NAMES.get(keyCode)
 
-    if(!name)
+    if(!name) {
+      glog.warn(
+        `Key '${ownerName}' is bound to key code 0x${keyCode.toString(16)}, `+
+        `which has no name muddy knows — its chord was left empty.`
+      )
+
       return ""
+    }
 
     const modifiers = KEY_MODIFIER_NAMES
       .filter(([bit]) => (keyModifier & bit) !== 0)
@@ -733,11 +1036,12 @@ export default class Unpack {
   }
 
   /**
-   * Parses a config.lua file of `key = [[value]]` long-bracket assignments
-   * into a plain object. Handles any bracket level (`[[…]]`, `[=[…]=]`, …) so a
-   * value containing `]]` round-trips — the level captured in group 2 is matched
-   * by the backreference in the closing delimiter. Mirrors the build's
-   * `#luaLongString`.
+   * Parses a config.lua file of `key = value` string assignments into a plain
+   * object. Mudlet runs the file as Lua and reads the globals, so any Lua
+   * string literal counts: a long bracket at any level (`[[…]]`, `[=[…]=]`, …,
+   * which is what muddy, muddler and Mudlet write; the level captured in
+   * group 2 is matched by the backreference in the closing delimiter), or a
+   * single- or double-quoted string with its escapes decoded.
    *
    * @private
    * @param {string} content - The config.lua content
@@ -745,11 +1049,15 @@ export default class Unpack {
    */
   #parseConfig = content => {
     const config = {}
-    const pattern = /(\w+)\s*=\s*\[(=*)\[([\s\S]*?)\]\2\]/g
+    const pattern =
+      /(\w+)\s*=\s*(?:\[(=*)\[([\s\S]*?)\]\2\]|(["'])((?:\\[\s\S]|(?!\4)[^\\\n])*)\4)/g
 
     let match
-    while((match = pattern.exec(content)) !== null)
-      config[match[1]] = match[3]
+    while((match = pattern.exec(content)) !== null) {
+      const [, key, , long, quote, quoted] = match
+
+      config[key] = quote ? decodeLuaEscapes(quoted) : long
+    }
 
     return config
   }
