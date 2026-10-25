@@ -1,4 +1,5 @@
 export default class Variable {
+    #private;
     constructor(object?: {});
     get name(): any;
     get keyType(): any;
@@ -8,7 +9,6 @@ export default class Variable {
     get isFolder(): any;
     toJSON(): any;
     toString(): string;
-    toXMLFragment(): import("xmlbuilder2/lib/interfaces").XMLBuilder;
-    #private;
+    toXMLFragment(): import("xmlbuilder2/lib/interfaces.js").XMLBuilder;
 }
 //# sourceMappingURL=Variable.d.ts.map

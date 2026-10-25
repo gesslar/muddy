@@ -1,3 +1,5 @@
+import { ActionBuilder as AB } from "@gesslar/actioneer";
+import { DirectoryObject, FileObject } from "@gesslar/toolkit";
 /**
  * Main Muddy package builder class.
  *
@@ -10,6 +12,7 @@
  * - Packaging everything into a compressed .mpackage file
  */
 export default class Muddy {
+    #private;
     /**
      * Main entry point for the Muddy package builder.
      *
@@ -26,9 +29,5 @@ export default class Muddy {
      * @param {AB} builder - Builder instance
      */
     setup(builder: AB): Promise<void>;
-    #private;
 }
-import { DirectoryObject } from "@gesslar/toolkit";
-import { FileObject } from "@gesslar/toolkit";
-import { ActionBuilder as AB } from "@gesslar/actioneer";
 //# sourceMappingURL=Muddy.d.ts.map

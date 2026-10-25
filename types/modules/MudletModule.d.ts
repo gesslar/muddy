@@ -2,6 +2,7 @@
  * Base class for all Mudlet module types (scripts, triggers, aliases, etc.).
  */
 export default class MudletModule {
+    #private;
     /**
      * Creates a new Mudlet module.
      *
@@ -94,6 +95,5 @@ export default class MudletModule {
      * @returns {import("xmlbuilder2").XMLBuilder}
      */
     toXMLFragment(): import("xmlbuilder2").XMLBuilder;
-    #private;
 }
 //# sourceMappingURL=MudletModule.d.ts.map

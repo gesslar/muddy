@@ -1,11 +1,13 @@
+import MudletModule from "./MudletModule.js";
 export default class Alias extends MudletModule {
+    #private;
     constructor(object?: {
         regex: string;
         command: string;
     });
     get regex(): any;
     get command(): any;
-    #private;
+    toJSON(): any;
+    toXMLFragment(): any;
 }
-import MudletModule from "./MudletModule.js";
 //# sourceMappingURL=Alias.d.ts.map

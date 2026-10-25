@@ -1,3 +1,4 @@
+import type { DirectoryObject } from "@gesslar/toolkit";
 /**
  * Type imports.
  *
@@ -16,5 +17,4 @@ export default class Disk {
      */
     static deleteRecursive(dir: DirectoryObject, includeSelf?: boolean): Promise<void>;
 }
-import type { DirectoryObject } from "@gesslar/toolkit";
 //# sourceMappingURL=Disk.d.ts.map

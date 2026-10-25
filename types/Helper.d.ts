@@ -1,3 +1,4 @@
+import type { DirectoryObject } from "@gesslar/toolkit";
 /**
  * Type imports.
  *
@@ -23,5 +24,4 @@ export default class Helper {
      */
     static emit(projectDirectory: DirectoryObject, packageName: string, glog: object): Promise<void>;
 }
-import type { DirectoryObject } from "@gesslar/toolkit";
 //# sourceMappingURL=Helper.d.ts.map

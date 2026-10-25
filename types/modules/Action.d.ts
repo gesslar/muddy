@@ -1,4 +1,6 @@
+import Module from "./MudletModule.js";
 export default class Action extends Module {
+    #private;
     constructor(object?: {});
     get css(): any;
     get commandButtonUp(): any;
@@ -13,7 +15,7 @@ export default class Action extends Module {
     get sizeY(): any;
     get buttonColumn(): any;
     get buttonRotation(): any;
-    #private;
+    toJSON(): any;
+    toXMLFragment(): any;
 }
-import Module from "./MudletModule.js";
 //# sourceMappingURL=Action.d.ts.map

@@ -1,7 +1,9 @@
+import MudletModule from "./MudletModule.js";
 /**
  * Script module - represents a Lua script in Mudlet with optional event handlers.
  */
 export default class Script extends MudletModule {
+    #private;
     /**
      * Creates a new Script module.
      *
@@ -17,7 +19,7 @@ export default class Script extends MudletModule {
      * @returns {Array<string>} List of event handler names
      */
     get eventHandlerList(): Array<string>;
-    #private;
+    toJSON(): any;
+    toXMLFragment(): any;
 }
-import MudletModule from "./MudletModule.js";
 //# sourceMappingURL=Script.d.ts.map
