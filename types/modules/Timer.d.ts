@@ -1,10 +1,12 @@
+import MudletModule from "./MudletModule.js";
 export default class Timer extends MudletModule {
+    #private;
     constructor(object: {}, glog: any);
     get command(): any;
     get time(): any;
     get isTempTimer(): any;
     get isOffsetTimer(): any;
-    #private;
+    toJSON(): any;
+    toXMLFragment(): any;
 }
-import MudletModule from "./MudletModule.js";
 //# sourceMappingURL=Timer.d.ts.map

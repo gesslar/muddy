@@ -1,4 +1,5 @@
-export const PATTERN_TYPES: Readonly<{
+import MudletModule from "./MudletModule.js";
+export declare const PATTERN_TYPES: Readonly<{
     substring: 0;
     regex: 1;
     begin: 2;
@@ -8,8 +9,9 @@ export const PATTERN_TYPES: Readonly<{
     color: 6;
     prompt: 7;
 }>;
-export const PATTERN_TYPE_NAMES: readonly string[];
+export declare const PATTERN_TYPE_NAMES: readonly string[];
 export default class Trigger extends MudletModule {
+    #private;
     constructor(object?: {});
     get triggerType(): any;
     get conditonLineDelta(): any;
@@ -31,7 +33,7 @@ export default class Trigger extends MudletModule {
     get isColorTrigger(): any;
     get isColorTriggerFg(): any;
     get isColorTriggerBg(): any;
-    #private;
+    toJSON(): any;
+    toXMLFragment(): any;
 }
-import MudletModule from "./MudletModule.js";
 //# sourceMappingURL=Trigger.d.ts.map

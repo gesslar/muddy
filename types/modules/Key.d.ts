@@ -1,4 +1,6 @@
+import MudletModule from "./MudletModule.js";
 export default class Key extends MudletModule {
+    #private;
     /**
      * Creates a new Key binding.
      *
@@ -19,7 +21,7 @@ export default class Key extends MudletModule {
     get keys(): any;
     get keyCode(): any;
     get keyModifier(): any;
-    #private;
+    toJSON(): any;
+    toXMLFragment(): any;
 }
-import MudletModule from "./MudletModule.js";
 //# sourceMappingURL=Key.d.ts.map

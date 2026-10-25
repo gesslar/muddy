@@ -3,7 +3,7 @@
  * (and therefore the Mudlet "grab key" button) prints, so users can copy
  * what they see in Mudlet directly.
  */
-export const KEY_CODES: Readonly<{
+export declare const KEY_CODES: Readonly<{
     A: 65;
     B: 66;
     C: 67;
@@ -121,13 +121,13 @@ export const KEY_CODES: Readonly<{
  * `mKeyCode` default). Used both when auto-wrapping folder keys and when
  * round-tripping them back out.
  */
-export const KEY_UNKNOWN: 33554431;
+export declare const KEY_UNKNOWN = 33554431;
 /**
  * Friendly aliases + typed-symbol shortcuts that resolve to a canonical
  * Qt::Key name. Lookup is case-insensitive so "esc", "Esc", "ESCAPE" and
  * "Escape" all land on the same bucket.
  */
-export const KEY_ALIASES: Readonly<{
+export declare const KEY_ALIASES: Readonly<{
     ESC: "Escape";
     RETURN: "Return";
     ENTER: "Enter";
@@ -179,7 +179,7 @@ export const KEY_ALIASES: Readonly<{
  * Cmd/Command/Meta) resolve to the same bit so users can spell it
  * however they're used to.
  */
-export const KEY_MODIFIERS: Readonly<{
+export declare const KEY_MODIFIERS: Readonly<{
     SHIFT: 33554432;
     CTRL: 67108864;
     CONTROL: 67108864;
@@ -201,12 +201,12 @@ export const KEY_MODIFIERS: Readonly<{
  *
  * @type {Array<[number, string]>}
  */
-export const KEY_MODIFIER_NAMES: Array<[number, string]>;
-export const KEY_CODE_LOOKUP: Map<string, 65 | 66 | 67 | 68 | 69 | 70 | 71 | 72 | 73 | 74 | 75 | 76 | 77 | 78 | 79 | 80 | 81 | 82 | 83 | 84 | 85 | 86 | 87 | 88 | 89 | 90 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 32 | 16777216 | 16777217 | 16777218 | 16777219 | 16777220 | 16777221 | 16777222 | 16777223 | 16777224 | 16777225 | 16777232 | 16777233 | 16777234 | 16777235 | 16777236 | 16777237 | 16777238 | 16777239 | 16777264 | 16777265 | 16777266 | 16777267 | 16777268 | 16777269 | 16777270 | 16777271 | 16777272 | 16777273 | 16777274 | 16777275 | 16777276 | 16777277 | 16777278 | 16777279 | 16777280 | 16777281 | 16777282 | 16777283 | 16777284 | 16777285 | 16777286 | 16777287 | 33 | 34 | 35 | 36 | 37 | 38 | 39 | 40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 | 58 | 59 | 60 | 61 | 62 | 63 | 64 | 91 | 92 | 93 | 94 | 95 | 96 | 123 | 124 | 125 | 126>;
+export declare const KEY_MODIFIER_NAMES: Array<[number, string]>;
+export declare const KEY_CODE_LOOKUP: Map<string, 32 | 33 | 34 | 35 | 36 | 37 | 38 | 39 | 40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 | 59 | 60 | 61 | 62 | 63 | 64 | 65 | 66 | 67 | 68 | 69 | 70 | 71 | 72 | 73 | 74 | 75 | 76 | 77 | 78 | 79 | 80 | 81 | 82 | 83 | 84 | 85 | 86 | 87 | 88 | 89 | 90 | 91 | 92 | 93 | 94 | 95 | 96 | 123 | 124 | 125 | 126 | 16777216 | 16777217 | 16777218 | 16777219 | 16777220 | 16777221 | 16777222 | 16777223 | 16777224 | 16777225 | 16777232 | 16777233 | 16777234 | 16777235 | 16777236 | 16777237 | 16777238 | 16777239 | 16777264 | 16777265 | 16777266 | 16777267 | 16777268 | 16777269 | 16777270 | 16777271 | 16777272 | 16777273 | 16777274 | 16777275 | 16777276 | 16777277 | 16777278 | 16777279 | 16777280 | 16777281 | 16777282 | 16777283 | 16777284 | 16777285 | 16777286 | 16777287>;
 /**
  * Reverse of {@link KEY_CODES}: Qt key value -> canonical key name. Used to
  * turn a stored key code back into the chord string a muddy author writes.
  */
-export const KEY_CODE_NAMES: Map<65 | 66 | 67 | 68 | 69 | 70 | 71 | 72 | 73 | 74 | 75 | 76 | 77 | 78 | 79 | 80 | 81 | 82 | 83 | 84 | 85 | 86 | 87 | 88 | 89 | 90 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 32 | 16777216 | 16777217 | 16777218 | 16777219 | 16777220 | 16777221 | 16777222 | 16777223 | 16777224 | 16777225 | 16777232 | 16777233 | 16777234 | 16777235 | 16777236 | 16777237 | 16777238 | 16777239 | 16777264 | 16777265 | 16777266 | 16777267 | 16777268 | 16777269 | 16777270 | 16777271 | 16777272 | 16777273 | 16777274 | 16777275 | 16777276 | 16777277 | 16777278 | 16777279 | 16777280 | 16777281 | 16777282 | 16777283 | 16777284 | 16777285 | 16777286 | 16777287 | 33 | 34 | 35 | 36 | 37 | 38 | 39 | 40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 | 58 | 59 | 60 | 61 | 62 | 63 | 64 | 91 | 92 | 93 | 94 | 95 | 96 | 123 | 124 | 125 | 126, string>;
-export const KEY_ALIAS_LOOKUP: Map<string, "Space" | "Escape" | "Backspace" | "Return" | "Enter" | "Insert" | "Delete" | "Left" | "Up" | "Right" | "Down" | "PageUp" | "PageDown" | "Exclam" | "QuoteDbl" | "NumberSign" | "Dollar" | "Percent" | "Ampersand" | "Apostrophe" | "ParenLeft" | "ParenRight" | "Asterisk" | "Plus" | "Comma" | "Minus" | "Period" | "Slash" | "Colon" | "Semicolon" | "Less" | "Equal" | "Greater" | "Question" | "At" | "BracketLeft" | "Backslash" | "BracketRight" | "AsciiCircum" | "Underscore" | "QuoteLeft" | "BraceLeft" | "Bar" | "BraceRight" | "AsciiTilde">;
+export declare const KEY_CODE_NAMES: Map<32 | 33 | 34 | 35 | 36 | 37 | 38 | 39 | 40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 | 59 | 60 | 61 | 62 | 63 | 64 | 65 | 66 | 67 | 68 | 69 | 70 | 71 | 72 | 73 | 74 | 75 | 76 | 77 | 78 | 79 | 80 | 81 | 82 | 83 | 84 | 85 | 86 | 87 | 88 | 89 | 90 | 91 | 92 | 93 | 94 | 95 | 96 | 123 | 124 | 125 | 126 | 16777216 | 16777217 | 16777218 | 16777219 | 16777220 | 16777221 | 16777222 | 16777223 | 16777224 | 16777225 | 16777232 | 16777233 | 16777234 | 16777235 | 16777236 | 16777237 | 16777238 | 16777239 | 16777264 | 16777265 | 16777266 | 16777267 | 16777268 | 16777269 | 16777270 | 16777271 | 16777272 | 16777273 | 16777274 | 16777275 | 16777276 | 16777277 | 16777278 | 16777279 | 16777280 | 16777281 | 16777282 | 16777283 | 16777284 | 16777285 | 16777286 | 16777287, string>;
+export declare const KEY_ALIAS_LOOKUP: Map<string, "Ampersand" | "Apostrophe" | "AsciiCircum" | "AsciiTilde" | "Asterisk" | "At" | "Backslash" | "Backspace" | "Bar" | "BraceLeft" | "BraceRight" | "BracketLeft" | "BracketRight" | "Colon" | "Comma" | "Delete" | "Dollar" | "Down" | "Enter" | "Equal" | "Escape" | "Exclam" | "Greater" | "Insert" | "Left" | "Less" | "Minus" | "NumberSign" | "PageDown" | "PageUp" | "ParenLeft" | "ParenRight" | "Percent" | "Period" | "Plus" | "Question" | "QuoteDbl" | "QuoteLeft" | "Return" | "Right" | "Semicolon" | "Slash" | "Space" | "Underscore" | "Up">;
 //# sourceMappingURL=KeyCode.d.ts.map

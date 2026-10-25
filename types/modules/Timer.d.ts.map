@@ -1,1 +1,1 @@
-{"version":3,"file":"Timer.d.ts","sourceRoot":"","sources":["../../src/modules/Timer.js"],"names":[],"mappings":"AAMA;IAGE,mCAuDC;IAED,mBAEC;IAED,gBAEC;IAED,uBAEC;IAED,yBAEC;;CAyBF;yBAvGwB,mBAAmB"}
+{"version":3,"file":"Timer.d.ts","sourceRoot":"","sources":["../../src/modules/Timer.js"],"names":[],"mappings":"AAEA,OAAO,YAAY,MAAM,mBAAmB,CAAA;AAK5C,MAAM,CAAC,OAAO,OAAO,KAAM,SAAQ,YAAY;;IAG7C,YAAY,MAAM,IAAG,EAAE,IAAI,KAAA,EAuD1B;IAED,IAAI,OAAO,QAEV;IAED,IAAI,IAAI,QAEP;IAED,IAAI,WAAW,QAEd;IAED,IAAI,aAAa,QAEhB;IAED,MAAM,QAKL;IAED,aAAa,QAeZ;CACF"}
