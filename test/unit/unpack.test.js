@@ -744,7 +744,7 @@ describe("unpack command", () => {
         "  <ScriptPackage>",
         "    <Script isActive=\"yes\" isFolder=\"no\">",
         "      <name>Old</name>",
-        "      <script>echo([[&lt;b&gt;&nbsp;HP]])</script>",
+        "      <script>echo([[&lt;b&gt;&nbsp;HP &constructor; &toString;]])</script>",
         "      <packageName/>",
         "      <eventHandlerList/>",
         "    </Script>",
@@ -763,10 +763,10 @@ describe("unpack command", () => {
       assert.equal(u.code, 0, `unpack failed: ${u.stderr}`)
     })
 
-    it("keeps &nbsp; as literal text", async() => {
+    it("keeps unknown entities like &nbsp; as literal text", async() => {
       assert.equal(
         await readFile(path.join(out, "src", "scripts", "Old.lua"), "utf8"),
-        "echo([[<b>&nbsp;HP]])"
+        "echo([[<b>&nbsp;HP &constructor; &toString;]])"
       )
     })
   })

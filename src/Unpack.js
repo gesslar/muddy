@@ -68,7 +68,7 @@ const decodeEntities = value =>
     if(dec)
       return String.fromCodePoint(parseInt(dec, 10))
 
-    return ENTITIES[name] ?? `&${name};`
+    return Object.hasOwn(ENTITIES, name) ? ENTITIES[name] : `&${name};`
   })
 
 /**
