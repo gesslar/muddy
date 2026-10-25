@@ -32,8 +32,8 @@ export default class Alias extends MudletModule {
     )
   }
 
-  toXMLFragment() {
-    const frag = super.toXMLFragment()
+  fieldsXMLFragment() {
+    const frag = super.fieldsXMLFragment()
 
     // Add elements in schema order (after name, script, packageName from Module)
     frag

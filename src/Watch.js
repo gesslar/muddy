@@ -47,13 +47,15 @@ export default class Watch {
     this.#mfileObject = mfileObject ?? null
     this.#glog = log
 
+    // Watch owns shutdown: it restores the terminal and closes the watcher.
+    // Registered before the first build so a signal during it exits cleanly.
+    for(const signal of ["SIGINT", "SIGTERM", "SIGHUP"])
+      process.on(signal, () => this.#shutdown())
+
     await new Muddy().run(this.#projectDirectory, this.#glog, this.#mfileObject)
 
     this.#initialiseInputHandler()
     this.#startWatch()
-
-    process.on("SIGTERM", () => this.#shutdown())
-    process.on("SIGINT", () => this.#shutdown())
   }
 
   #startWatch() {

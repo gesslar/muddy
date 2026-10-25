@@ -312,8 +312,8 @@ export default class Trigger extends MudletModule {
     )
   }
 
-  toXMLFragment() {
-    const frag = super.toXMLFragment()
+  fieldsXMLFragment() {
+    const frag = super.fieldsXMLFragment()
 
     // Add trigger-specific attributes
     const root = frag.first()

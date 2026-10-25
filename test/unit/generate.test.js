@@ -151,6 +151,19 @@ describe("--generate / -g option", () => {
       assert.equal(mfile.outputFile, true)
     })
 
+    it("should build cleanly, with the Rats triggers inside their group", async () => {
+      const {stdout, stderr} = await exec("node", [CLI, projectDir])
+      assert.doesNotMatch(stdout + stderr, /does not exist/)
+
+      const xml = await readFile(
+        path.join(projectDir, "build", "testpkg.xml"), "utf8"
+      )
+      assert.match(
+        xml,
+        /<TriggerGroup[^>]*>\s*<name>Rats<\/name>[\s\S]*?<name>Rat in<\/name>[\s\S]*?<name>Rat out<\/name>[\s\S]*?<\/TriggerGroup>/
+      )
+    })
+
     it("should create .gitignore", async () => {
       const content = await readFile(
         path.join(projectDir, ".gitignore"), "utf8"
@@ -574,28 +587,39 @@ describe("--generate / -g option", () => {
       )
     })
 
-    it("should sanitize alias lua filename", async () => {
+    it("should name alias lua file the way the build looks it up", async () => {
       const dir = path.join(
         projectDir, "src", "aliases", "my-cool-pkg"
       )
       assert.ok(
         await exists(
-          path.join(dir, "my_cool_pkg.lua")
+          path.join(dir, "my-cool-pkg.lua")
         ),
-        "alias lua file should use sanitized name"
+        "alias lua file should match the alias name"
       )
     })
 
-    it("should sanitize timer lua filename", async () => {
+    it("should name timer lua file the way the build looks it up", async () => {
       const dir = path.join(
         projectDir, "src", "timers", "my-cool-pkg"
       )
       assert.ok(
         await exists(
-          path.join(dir, "my_cool_pkg_anti_idle.lua")
+          path.join(dir, "my-cool-pkg_anti_idle.lua")
         ),
-        "timer lua file should use sanitized name"
+        "timer lua file should match the timer name"
       )
+    })
+
+    it("should build with the alias and timer scripts loaded", async () => {
+      const {stdout, stderr} = await exec("node", [CLI, projectDir])
+      assert.doesNotMatch(stdout + stderr, /does not exist/)
+
+      const xml = await readFile(
+        path.join(projectDir, "build", "my-cool-pkg.xml"), "utf8"
+      )
+      assert.match(xml, /A circus performer named Brian/)
+      assert.match(xml, /send\(&quot;ql&quot;\)|send\("ql"\)/)
     })
   })
 })

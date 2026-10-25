@@ -1,7 +1,7 @@
 import {afterEach, beforeEach, describe, it} from "node:test"
 import assert from "node:assert/strict"
 import {execFile} from "node:child_process"
-import {mkdtemp, readFile, rm, writeFile} from "node:fs/promises"
+import {mkdir, mkdtemp, readFile, rm, writeFile} from "node:fs/promises"
 import {promisify} from "node:util"
 import path from "node:path"
 import os from "node:os"
@@ -510,6 +510,71 @@ describe("version subcommand", () => {
       const {code, stdout, stderr} = await run(tmpDir, ["version", "patch", "--package", "--no-warn"])
       assert.equal(code, 0)
       assert.doesNotMatch(stdout + stderr, /no package\.json/i, "should stay quiet about the missing package.json")
+    })
+  })
+
+  describe("project directory and --mfile", () => {
+    // muddy is run against a project directory (npx @gesslar/muddy
+    // /some/project), so version takes one like every other command and
+    // honours --mfile, resolved against it. --package syncs its package.json.
+    let project
+    let elsewhere
+
+    beforeEach(async() => {
+      project = path.join(tmpDir, "proj")
+      elsewhere = path.join(tmpDir, "elsewhere")
+      await mkdir(project)
+      await mkdir(elsewhere)
+      await writeMfile(project, "1.2.3")
+    })
+
+    const versionOf = async file =>
+      JSON.parse(await readFile(file, "utf8")).version
+
+    it("bumps the mfile in the given directory", async() => {
+      const {code, stderr} = await run(elsewhere, ["version", "patch", project])
+      assert.equal(code, 0, stderr)
+      assert.equal(await versionOf(path.join(project, "mfile")), "1.2.4")
+    })
+
+    it("prints the given directory's version", async() => {
+      const {code, stdout} = await run(elsewhere, ["version", "current", project])
+      assert.equal(code, 0)
+      assert.equal(stdout.trim(), "1.2.3")
+    })
+
+    it("sets the version and syncs that project's package.json", async() => {
+      await writePackageJson(project, "1.2.3")
+
+      const {code, stderr} = await run(elsewhere, ["version", "set", "2.0.0", project, "--package"])
+      assert.equal(code, 0, stderr)
+      assert.equal(await versionOf(path.join(project, "mfile")), "2.0.0")
+      assert.equal(await versionOf(path.join(project, "package.json")), "2.0.0")
+    })
+
+    it("bumps an alternate mfile named by --mfile, not ./mfile", async() => {
+      await writeFile(path.join(project, "alt-mfile"),
+        JSON.stringify({package: "Alt", version: "5.0.0"}, null, 2) + "\n")
+
+      const {code, stderr} = await run(project, ["-m", "alt-mfile", "version", "minor"])
+      assert.equal(code, 0, stderr)
+      assert.equal(await versionOf(path.join(project, "alt-mfile")), "5.1.0")
+      assert.equal(await versionOf(path.join(project, "mfile")), "1.2.3")
+    })
+
+    it("resolves --mfile against the given directory", async() => {
+      await writeFile(path.join(project, "alt-mfile"),
+        JSON.stringify({package: "Alt", version: "5.0.0"}, null, 2) + "\n")
+
+      const {code, stdout} = await run(elsewhere, ["-m", "alt-mfile", "version", "current", project])
+      assert.equal(code, 0)
+      assert.equal(stdout.trim(), "5.0.0")
+    })
+
+    it("errors on a directory that doesn't exist", async() => {
+      const {code, stdout, stderr} = await run(elsewhere, ["version", "patch", path.join(tmpDir, "nope")])
+      assert.notEqual(code, 0)
+      assert.match(stdout + stderr, /No such directory/)
     })
   })
 })

@@ -51,6 +51,7 @@ function __PKGNAME__:new(cons)
     return
   end
 
+  instance.path = result
   instance.outputPath = instance.path .. "/.output"
 
   if instance.watch then instance:start() end

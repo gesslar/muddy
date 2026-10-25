@@ -1,7 +1,7 @@
 #! /usr/bin/env node
 
 import c from "@gesslar/colours"
-import {Collection, DirectoryObject, FileObject, Glog, Sass, Term} from "@gesslar/toolkit"
+import {Collection, DirectoryObject, FileObject, Glog, Sass} from "@gesslar/toolkit"
 import {Argument, Command} from "commander"
 import process from "node:process"
 
@@ -71,6 +71,7 @@ void (async() => {
       .command("version")
       .description("Increment the semantic version (major, minor, or patch)")
       .addArgument(new Argument("<kind>").choices(["major", "minor", "patch"]))
+      .addArgument(new Argument("[directory]", "The project directory (defaults to the current one)."))
       .option("--package", "Also sync the version to a sibling package.json.", false)
       .option("--no-warn", "Suppress the warning when --package finds nothing to sync.")
       .action(incrementVersion)
@@ -78,12 +79,14 @@ void (async() => {
     versionCmd
       .command("current")
       .description("Print the current semantic version")
+      .addArgument(new Argument("[directory]", "The project directory (defaults to the current one)."))
       .action(currentVersion)
 
     versionCmd
       .command("set")
       .description("Set the semantic version to an explicit x.y.z value")
       .addArgument(new Argument("<semver>"))
+      .addArgument(new Argument("[directory]", "The project directory (defaults to the current one)."))
       .option("--package", "Also sync the version to a sibling package.json.", false)
       .option("--no-warn", "Suppress the warning when --package finds nothing to sync.")
       .action(setVersion)
@@ -135,27 +138,10 @@ void (async() => {
       }
 
       if(opts.watch) {
-        setupAbortHandlers()
         await new Watch().run(cwd, glog, mfileObject)
       } else {
         await new Muddy().run(cwd, glog, mfileObject)
       }
-    }
-
-    /**
-     * Creates handlers for various reasons that the application may crash.
-     */
-    function setupAbortHandlers() {
-      void["SIGINT", "SIGTERM", "SIGHUP"].forEach(signal => {
-        process.on(signal, () => {
-          Term
-            .setLineMode()
-            .showCursor()
-            .pause()
-
-          process.exit(0)
-        })
-      })
     }
 
     async function unpack(mpackage, directory, options) {
@@ -179,24 +165,56 @@ void (async() => {
       })
     }
 
-    async function incrementVersion(kind, options, command) {
+    async function incrementVersion(kind, directory, options, command) {
       // Pull in root opts so global flags like --nerd surface to the catch below.
       Object.assign(opts, program.opts())
       // --package / --no-warn may be declared on this command or its parent; merge both.
       const merged = command.optsWithGlobals()
-      await Version.increment(kind, glog, merged.package, merged.warn)
+      await Version.increment(kind, glog, {
+        ...await versionTarget(directory, merged.mfile),
+        syncPackage: merged.package,
+        warn: merged.warn,
+      })
     }
 
-    async function currentVersion() {
+    async function currentVersion(directory, options, command) {
       Object.assign(opts, program.opts())
-      await Version.current()
+      await Version.current(
+        await versionTarget(directory, command.optsWithGlobals().mfile)
+      )
     }
 
-    async function setVersion(newVersion, options, command) {
+    async function setVersion(newVersion, directory, options, command) {
       Object.assign(opts, program.opts())
       // --package / --no-warn may be declared on this command or its parent; merge both.
       const merged = command.optsWithGlobals()
-      await Version.set(newVersion, glog, merged.package, merged.warn)
+      await Version.set(newVersion, glog, {
+        ...await versionTarget(directory, merged.mfile),
+        syncPackage: merged.package,
+        warn: merged.warn,
+      })
+    }
+
+    /**
+     * Resolves the project directory and any --mfile for the version commands
+     * the same way the build does: --mfile is relative to the project.
+     *
+     * @param {string} [directory] - The directory argument, if given
+     * @param {string} [mfile] - The --mfile path, if given
+     * @returns {Promise<{project: DirectoryObject, mfile?: FileObject}>}
+     */
+    async function versionTarget(directory, mfile) {
+      const dirArg = directory?.trim() ?? ""
+      const project = new DirectoryObject(dirArg || ".")
+
+      if(!await project.exists) {
+        glog.error(`No such directory '${dirArg}'.`)
+        process.exit(1)
+      }
+
+      return mfile
+        ? {project, mfile: new FileObject(mfile, project)}
+        : {project}
     }
   } catch(error) {
     Sass.from(error, "Starting muddy.").report(opts.nerd ?? false)

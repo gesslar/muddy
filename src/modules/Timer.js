@@ -88,8 +88,8 @@ export default class Timer extends MudletModule {
     )
   }
 
-  toXMLFragment() {
-    const frag = super.toXMLFragment()
+  fieldsXMLFragment() {
+    const frag = super.fieldsXMLFragment()
 
     // Add timer-specific attributes
     const root = frag.first()

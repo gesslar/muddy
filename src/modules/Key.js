@@ -192,8 +192,8 @@ export default class Key extends MudletModule {
     )
   }
 
-  toXMLFragment() {
-    const frag = super.toXMLFragment()
+  fieldsXMLFragment() {
+    const frag = super.fieldsXMLFragment()
 
     // Add elements in schema order (after name, packageName, script from Module)
     frag
